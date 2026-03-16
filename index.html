@@ -30,6 +30,7 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 .badge{width:28px;height:28px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
 .hidden{display:none!important}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--green);color:#fff;padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;z-index:30;box-shadow:0 8px 20px rgba(0,0,0,.18)}
+
 /* Recadrage */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;display:flex;flex-direction:column}
 .modal-header{padding:12px;display:flex;gap:8px;background:#111}
@@ -49,42 +50,42 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 
 <div class="wrap">
 
-<div class="card">
-  <div class="step"><div class="badge">1</div><b>Générer le numéro</b></div>
-  <div id="startCard">
-    <button id="btnGen" class="btn-primary">Générer le numéro</button>
+  <div class="card">
+    <div class="step"><div class="badge">1</div><b>Générer le numéro</b></div>
+    <div id="startCard">
+      <button id="btnGen" class="btn-primary">Générer le numéro</button>
+    </div>
+    <div id="numeroCard" class="hidden">
+      <div class="bigNum" id="numeroBox"></div>
+      <button id="btnRegen" class="btn-secondary">Regénérer</button>
+    </div>
   </div>
-  <div id="numeroCard" class="hidden">
-    <div class="bigNum" id="numeroBox"></div>
-    <button id="btnRegen" class="btn-secondary">Regénérer</button>
+
+  <div class="card">
+    <div class="step"><div class="badge">2</div><b>Photos du BL</b></div>
+    <div class="thumb-row" id="thumbRow"></div>
+    <input id="galleryInput" type="file" accept="image/*" class="hidden">
+    <input id="cameraInput" type="file" accept="image/*" capture="environment" class="hidden">
   </div>
-</div>
 
-<div class="card">
-  <div class="step"><div class="badge">2</div><b>Photos du BL</b></div>
-  <div class="thumb-row" id="thumbRow"></div>
-  <input id="galleryInput" type="file" accept="image/*" class="hidden">
-  <input id="cameraInput" type="file" accept="image/*" capture="environment" class="hidden">
-</div>
-
-<div class="card">
-  <div class="step"><div class="badge">3</div><b>Données du bon</b></div>
-  <div class="grid">
-    <div><label>Date</label><input id="date" type="date"></div>
-    <div><label>Affaire</label><input id="affaire" list="affairesList" autocomplete="off"><datalist id="affairesList"></datalist></div>
-    <div><label>Chef de chantier</label><input id="chef" list="chefsList" autocomplete="off"><datalist id="chefsList"></datalist></div>
-    <div><label>Fournisseur</label><input id="fournisseur"></div>
-    <div style="grid-column:1/-1"><label>Détail / Fournitures</label><input id="detail" placeholder="Câble HTA, armoires…"></div>
+  <div class="card">
+    <div class="step"><div class="badge">3</div><b>Données du bon</b></div>
+    <div class="grid">
+      <div><label>Date</label><input id="date" type="date"></div>
+      <div><label>Affaire</label><input id="affaire" list="affairesList" autocomplete="off"><datalist id="affairesList"></datalist></div>
+      <div><label>Chef de chantier</label><input id="chef" list="chefsList" autocomplete="off"><datalist id="chefsList"></datalist></div>
+      <div><label>Fournisseur</label><input id="fournisseur"></div>
+      <div style="grid-column:1/-1"><label>Détail / Fournitures</label><input id="detail" placeholder="Câble HTA, armoires…"></div>
+    </div>
   </div>
-</div>
 
-<div class="card">
-  <div class="step"><div class="badge">4</div><b>PDF et Mail</b></div>
-  <button id="btnPdf" class="btn-primary">Générer le PDF</button>
-  <button id="btnMailRomain" class="btn-secondary">Envoyer mail Romain</button>
-  <button id="btnMailMorgan" class="btn-secondary">Envoyer mail Morgan</button>
-  <button id="btnReset" class="btn-secondary">Réinitialiser</button>
-</div>
+  <div class="card">
+    <div class="step"><div class="badge">4</div><b>PDF et Mail</b></div>
+    <button id="btnPdf" class="btn-primary">Générer le PDF</button>
+    <button id="btnMailRomain" class="btn-secondary">Envoyer mail Romain</button>
+    <button id="btnMailMorgan" class="btn-secondary">Envoyer mail Morgan</button>
+    <button id="btnReset" class="btn-secondary">Réinitialiser</button>
+  </div>
 
 </div>
 
@@ -108,6 +109,7 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 let numero = null;
 let photos = [];
 let lastPdf = "";
+
 const thumbRow = document.getElementById("thumbRow");
 const gallery = document.getElementById("galleryInput");
 const camera = document.getElementById("cameraInput");
@@ -115,7 +117,12 @@ const cropModal = document.getElementById("cropModal");
 const cropWrap = document.getElementById("cropWrap");
 const cropCanvas = document.getElementById("cropCanvas");
 const cropCtx = cropCanvas.getContext("2d");
-const handles = [document.getElementById("h0"),document.getElementById("h1"),document.getElementById("h2"),document.getElementById("h3")];
+const handles = [
+  document.getElementById("h0"),
+  document.getElementById("h1"),
+  document.getElementById("h2"),
+  document.getElementById("h3")
+];
 
 const AFFAIRES = ["000 STOCK", "001 FRAIS GENERAUX", "002 INVESTISSEMENT", "073 LA GLACIERE", "108 LA GLACIERE", "143 NERAC GEGC", "153 VOINGT", "154 SOULOM", "162 CARBONNE PCCN", "170 GRAMONT REPRISE CLOTURE", "171 AUCH DEMOL CONDOS", "172 CARBONNE", "173 VIC FEZENSAC TRVX PREPA", "178 BALMA REPRISE SOGC", "179 CASTELSARRASIN BAT", "182 CISSAC", "183 MONTGROS EIFFAGE", "185 LA VERNELLE GEGC", "197 VIC FEZENSAC", "198 CASTELSARRASIN GEGC", "201 CONSTRUCTYS 2025", "208 MARSILLON ZEROPHYTO", "212 JALIS", "215 AUDON CANIVEAU", "216 CARBONNE GC", "217 THIVIERS INEO", "218 UNET INEO", "219 VALLON RTE", "220 LUZIERES OBTURATION NUISIBLES", "221 LARDIT", "222 SABLAGE CANIVEAUX", "223 LACAUNE REPRISE PISTES", "224 SEYSSES", "225 THIVIERS GEGC", "226 MONTGROS LOGE TR", "227 FERROUGE BO", "228 DALLES CNVX MPS + MONTREAL", "229 UNET GEGC", "230 LAFOURGUETTE TELECOM", "231  LARDIT EIFFAGE BO", "232 NEUSSARGUES", "233 ARVIEU TR312", "234 LERE FOUILLE HTA", "235 NEUSSARGUES INEO", "236 PREGRAND PETITS TVX", "237 REQUISTA GRANDS TVX", "238 MOUNEDE TELECOM", "239 REVEL FOUILLE HTA", "240 PARENTIS SOUTENEMENT", "241 LEGUEVIN TELECOM", "242 MEZIN PORTAIL", "243 DOUDRAC PORTAIL", "244 RIVENEUVE", "245 PASSAGE D'AGEN CNVX", "246 LUXEY CLOTURE", "247 NESTE", "248 RISCLE PT", "249 RISCLE INEO", "250 MURET DALLE", "251 ST HENRI BO", "252 ST SEVER TCFM", "253 ROJA DJ", "254 MASSEUBE"];
 const CHEFS = ["Anthony CABROL","Lionel ALRAM","Guillaume VANGREVELYNGHE","Morgan LANASPEZE","Samuel REINA","Eric LAGARDE","Juanito MAILLOT","David DA COSTA","Romain PRIEUR","Anthony LAGARDE","Nicolas COIG","Maxime BARTHES","Pascal PONS","David LOEC","Ludovic BARDOU","Hector GIMENEZ","Duncan GODINEAU","Christel FAUGERE","Martins Pereira VITOR MANUEL","Thomas CHAUVAN","Gabriel DESTACAMP","José CAMPOS","Thibaud MARIE","Hervé ZANARDO","Romiro DOMINGUES"];
@@ -127,21 +134,33 @@ let displayed = {x:0,y:0,w:1,h:1};
 
 function toast(msg){
   const t = document.createElement("div");
-  t.className = "toast"; t.textContent = msg;
+  t.className = "toast";
+  t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2200);
 }
-function today(){ return new Date().toISOString().slice(0,10); }
-function genNum(){
-  let d = new Date(), p = v => String(v).padStart(2,"0");
-  return String(d.getFullYear()).slice(2)+p(d.getMonth()+1)+p(d.getDate())+p(d.getHours())+p(d.getMinutes());
+
+function today(){
+  return new Date().toISOString().slice(0,10);
 }
+
+function genNum(){
+  const d = new Date();
+  const p = v => String(v).padStart(2,"0");
+  return String(d.getFullYear()).slice(2)
+    + p(d.getMonth()+1)
+    + p(d.getDate())
+    + p(d.getHours())
+    + p(d.getMinutes());
+}
+
 function setNumero(n){
   numero = n;
   document.getElementById("numeroBox").textContent = n;
   document.getElementById("startCard").classList.add("hidden");
   document.getElementById("numeroCard").classList.remove("hidden");
 }
+
 document.getElementById("btnGen").onclick = () => setNumero(genNum());
 document.getElementById("btnRegen").onclick = () => setNumero(genNum());
 
@@ -154,190 +173,314 @@ function populateLists(){
 
 function renderThumbs(){
   thumbRow.innerHTML = "";
-  photos.forEach((src,i) => {
-    let d = document.createElement("div");
+
+  photos.forEach((src, i) => {
+    const d = document.createElement("div");
     d.className = "thumb";
-    d.innerHTML = '<img src="'+src+'"><button class="xbtn">×</button>';
-    d.querySelector(".xbtn").onclick = e => { e.stopPropagation(); photos.splice(i,1); renderThumbs(); };
+    d.innerHTML = '<img src="' + src + '"><button class="xbtn">×</button>';
+    d.querySelector(".xbtn").onclick = e => {
+      e.stopPropagation();
+      photos.splice(i, 1);
+      renderThumbs();
+    };
     thumbRow.appendChild(d);
   });
-  let gal = document.createElement("div");
-  gal.className = "thumb"; gal.innerHTML = "🖼️"; gal.onclick = () => gallery.click();
+
+  const gal = document.createElement("div");
+  gal.className = "thumb";
+  gal.innerHTML = "🖼️";
+  gal.onclick = () => gallery.click();
   thumbRow.appendChild(gal);
-  let cam = document.createElement("div");
-  cam.className = "thumb"; cam.innerHTML = "📷"; cam.onclick = () => camera.click();
+
+  const cam = document.createElement("div");
+  cam.className = "thumb";
+  cam.innerHTML = "📷";
+  cam.onclick = () => camera.click();
   thumbRow.appendChild(cam);
 }
 
 function toData(file){
-  return new Promise((resolve,reject) => {
-    let r = new FileReader();
-    r.onload = () => resolve(r.result); r.onerror = reject;
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
     r.readAsDataURL(file);
   });
 }
 
-gallery.onchange = async e => { let f=e.target.files[0]; if(!f)return; startCrop(await toData(f)); e.target.value=""; };
-camera.onchange  = async e => { let f=e.target.files[0]; if(!f)return; startCrop(await toData(f)); e.target.value=""; };
+gallery.onchange = async e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  startCrop(await toData(f));
+  e.target.value = "";
+};
+
+camera.onchange = async e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  startCrop(await toData(f));
+  e.target.value = "";
+};
 
 function startCrop(src){
   cropImage = new Image();
   cropImage.onload = openCropModal;
   cropImage.src = src;
 }
+
 function openCropModal(){
   cropModal.classList.remove("hidden");
   resizeCropCanvas();
+
   const m = 0.08;
   cropPoints = [
-    {x:displayed.x+displayed.w*m,     y:displayed.y+displayed.h*m},
-    {x:displayed.x+displayed.w*(1-m), y:displayed.y+displayed.h*m},
-    {x:displayed.x+displayed.w*(1-m), y:displayed.y+displayed.h*(1-m)},
-    {x:displayed.x+displayed.w*m,     y:displayed.y+displayed.h*(1-m)}
+    {x:displayed.x + displayed.w * m,     y:displayed.y + displayed.h * m},
+    {x:displayed.x + displayed.w * (1-m), y:displayed.y + displayed.h * m},
+    {x:displayed.x + displayed.w * (1-m), y:displayed.y + displayed.h * (1-m)},
+    {x:displayed.x + displayed.w * m,     y:displayed.y + displayed.h * (1-m)}
   ];
+
   drawCropScene();
 }
-function closeCropModal(){ cropModal.classList.add("hidden"); cropImage=null; activeHandle=-1; }
+
+function closeCropModal(){
+  cropModal.classList.add("hidden");
+  cropImage = null;
+  activeHandle = -1;
+}
+
 function resizeCropCanvas(){
-  const rect=cropWrap.getBoundingClientRect();
-  cropCanvas.width=rect.width; cropCanvas.height=rect.height;
-  const iw=cropImage.width, ih=cropImage.height;
-  const scale=Math.min(rect.width/iw,rect.height/ih);
-  const w=iw*scale, h=ih*scale;
-  const x=(rect.width-w)/2, y=(rect.height-h)/2;
-  displayed={x,y,w,h};
+  const rect = cropWrap.getBoundingClientRect();
+  cropCanvas.width = rect.width;
+  cropCanvas.height = rect.height;
+
+  const iw = cropImage.width;
+  const ih = cropImage.height;
+  const scale = Math.min(rect.width / iw, rect.height / ih);
+  const w = iw * scale;
+  const h = ih * scale;
+  const x = (rect.width - w) / 2;
+  const y = (rect.height - h) / 2;
+
+  displayed = {x, y, w, h};
 }
+
 function drawCropScene(){
-  cropCtx.clearRect(0,0,cropCanvas.width,cropCanvas.height);
-  cropCtx.drawImage(cropImage,displayed.x,displayed.y,displayed.w,displayed.h);
-  cropCtx.strokeStyle="#ff3b30"; cropCtx.lineWidth=3;
-  cropCtx.beginPath(); cropCtx.moveTo(cropPoints[0].x,cropPoints[0].y);
-  for(let i=1;i<cropPoints.length;i++) cropCtx.lineTo(cropPoints[i].x,cropPoints[i].y);
-  cropCtx.closePath(); cropCtx.stroke();
-  handles.forEach((h,i)=>{ h.style.left=cropPoints[i].x+"px"; h.style.top=cropPoints[i].y+"px"; });
+  cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+  cropCtx.drawImage(cropImage, displayed.x, displayed.y, displayed.w, displayed.h);
+
+  cropCtx.strokeStyle = "#ff3b30";
+  cropCtx.lineWidth = 3;
+  cropCtx.beginPath();
+  cropCtx.moveTo(cropPoints[0].x, cropPoints[0].y);
+  for(let i = 1; i < cropPoints.length; i++){
+    cropCtx.lineTo(cropPoints[i].x, cropPoints[i].y);
+  }
+  cropCtx.closePath();
+  cropCtx.stroke();
+
+  handles.forEach((h, i) => {
+    h.style.left = cropPoints[i].x + "px";
+    h.style.top = cropPoints[i].y + "px";
+  });
 }
+
 function clampPoint(p){
-  p.x=Math.max(displayed.x,Math.min(displayed.x+displayed.w,p.x));
-  p.y=Math.max(displayed.y,Math.min(displayed.y+displayed.h,p.y));
+  p.x = Math.max(displayed.x, Math.min(displayed.x + displayed.w, p.x));
+  p.y = Math.max(displayed.y, Math.min(displayed.y + displayed.h, p.y));
 }
-handles.forEach((h,i)=>{
-  h.addEventListener("pointerdown",e=>{ e.preventDefault(); activeHandle=i; h.setPointerCapture(e.pointerId); });
+
+handles.forEach((h, i) => {
+  h.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    activeHandle = i;
+    h.setPointerCapture(e.pointerId);
+  });
 });
-cropWrap.addEventListener("pointermove",e=>{
-  if(activeHandle===-1)return;
-  const rect=cropWrap.getBoundingClientRect();
-  cropPoints[activeHandle].x=e.clientX-rect.left;
-  cropPoints[activeHandle].y=e.clientY-rect.top;
+
+cropWrap.addEventListener("pointermove", e => {
+  if(activeHandle === -1) return;
+
+  const rect = cropWrap.getBoundingClientRect();
+  cropPoints[activeHandle].x = e.clientX - rect.left;
+  cropPoints[activeHandle].y = e.clientY - rect.top;
   clampPoint(cropPoints[activeHandle]);
   drawCropScene();
 });
-window.addEventListener("pointerup",()=>activeHandle=-1);
-window.addEventListener("resize",()=>{ if(cropImage&&!cropModal.classList.contains("hidden")){ resizeCropCanvas(); drawCropScene(); }});
+
+window.addEventListener("pointerup", () => activeHandle = -1);
+
+window.addEventListener("resize", () => {
+  if(cropImage && !cropModal.classList.contains("hidden")){
+    resizeCropCanvas();
+    drawCropScene();
+  }
+});
 
 document.getElementById("btnCancelCrop").onclick = closeCropModal;
+
 document.getElementById("btnValidateCrop").onclick = () => {
-  if(!cropImage){toast("Aucune image");return;}
-  const minX=Math.min(...cropPoints.map(p=>p.x)), maxX=Math.max(...cropPoints.map(p=>p.x));
-  const minY=Math.min(...cropPoints.map(p=>p.y)), maxY=Math.max(...cropPoints.map(p=>p.y));
-  const sx=(minX-displayed.x)*(cropImage.width/displayed.w);
-  const sy=(minY-displayed.y)*(cropImage.height/displayed.h);
-  const sw=(maxX-minX)*(cropImage.width/displayed.w);
-  const sh=(maxY-minY)*(cropImage.height/displayed.h);
-  if(sw<=1||sh<=1){toast("Recadrage invalide");return;}
-  const temp=document.createElement("canvas");
-  temp.width=Math.max(1,Math.round(sw)); temp.height=Math.max(1,Math.round(sh));
-  temp.getContext("2d").drawImage(cropImage,sx,sy,sw,sh,0,0,temp.width,temp.height);
-  photos.push(temp.toDataURL("image/jpeg",0.92));
-  renderThumbs(); closeCropModal(); toast("Photo validée");
-};
-
-// ── GÉNÉRATION PDF avec page de garde ────────────────────────────────────────
-async function generatePdf(){
-  if(!numero){alert("Générez le numéro d'abord");return;}
-  if(!photos.length){alert("Ajoutez au moins une photo du BL");return;}
-
-  const {jsPDF} = window.jspdf;
-  const pdf = new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-  const pageW = 210, pageH = 297;
-
-  // ── PAGE 1 : fiche récap ──────────────────────────────────────────────────
-  // En-tête vert
-  pdf.setFillColor(26,58,42);
-  pdf.rect(0,0,pageW,28,"F");
-  pdf.setTextColor(245,166,35);
-  pdf.setFontSize(16); pdf.setFont("helvetica","bold");
-  pdf.text("GCF – Génie Civil Frontonnais",14,12);
-  pdf.setTextColor(255,255,255);
-  pdf.setFontSize(10); pdf.setFont("helvetica","normal");
-  pdf.text("Bon de livraison  N° " + numero, 14, 22);
-
-  // Ligne séparatrice
-  pdf.setDrawColor(200,64,10); pdf.setLineWidth(0.8);
-  pdf.line(14,32,196,32);
-
-  // Données
-  const rows = [
-    ["Date",           document.getElementById("date").value       || "—"],
-    ["Affaire",        document.getElementById("affaire").value     || "—"],
-    ["Chef de chantier", document.getElementById("chef").value     || "—"],
-    ["Fournisseur",    document.getElementById("fournisseur").value || "—"],
-    ["Fournitures",    document.getElementById("detail").value      || "—"],
-  ];
-
-  let y = 42;
-  rows.forEach(([label, value]) => {
-    pdf.setFont("helvetica","bold"); pdf.setFontSize(9); pdf.setTextColor(120,113,108);
-    pdf.text(label, 14, y);
-    pdf.setFont("helvetica","normal"); pdf.setTextColor(28,25,23);
-    const lines = pdf.splitTextToSize(String(value), 130);
-    pdf.text(lines, 65, y);
-    y += lines.length > 1 ? lines.length * 5.5 + 2 : 8;
-  });
-
-  // ── PAGES SUIVANTES : une photo par page ─────────────────────────────────
-  for(let i=0;i<photos.length;i++){
-    pdf.addPage();
-    const img = new Image(); img.src = photos[i];
-    await new Promise(res => img.onload = res);
-    const maxW = 190, maxH = 277;
-    const ratio = Math.min(maxW/img.width, maxH/img.height);
-    const w = img.width*ratio, h = img.height*ratio;
-    const x = (pageW-w)/2, yImg = (pageH-h)/2;
-    pdf.addImage(photos[i],"JPEG",x,yImg,w,h);
+  if(!cropImage){
+    toast("Aucune image");
+    return;
   }
 
-  pdf.save(numero + "-" + fournisseur.replace(/[\s/\\]/g,"-") + ".pdf");
-  lastPdf = numero + "-" + fournisseur + ".pdf";
-  toast("PDF généré !");
+  const minX = Math.min(...cropPoints.map(p => p.x));
+  const maxX = Math.max(...cropPoints.map(p => p.x));
+  const minY = Math.min(...cropPoints.map(p => p.y));
+  const maxY = Math.max(...cropPoints.map(p => p.y));
+
+  const sx = (minX - displayed.x) * (cropImage.width / displayed.w);
+  const sy = (minY - displayed.y) * (cropImage.height / displayed.h);
+  const sw = (maxX - minX) * (cropImage.width / displayed.w);
+  const sh = (maxY - minY) * (cropImage.height / displayed.h);
+
+  if(sw <= 1 || sh <= 1){
+    toast("Recadrage invalide");
+    return;
+  }
+
+  const temp = document.createElement("canvas");
+  temp.width = Math.max(1, Math.round(sw));
+  temp.height = Math.max(1, Math.round(sh));
+  temp.getContext("2d").drawImage(cropImage, sx, sy, sw, sh, 0, 0, temp.width, temp.height);
+
+  photos.push(temp.toDataURL("image/jpeg", 0.92));
+  renderThumbs();
+  closeCropModal();
+  toast("Photo validée");
+};
+
+async function generatePdf(){
+  try{
+    if(!numero){
+      alert("Générez le numéro d'abord");
+      return;
+    }
+
+    if(!photos.length){
+      alert("Ajoutez au moins une photo du BL");
+      return;
+    }
+
+    const fournisseurValue = document.getElementById("fournisseur").value || "Sans-fournisseur";
+    const safeFournisseur = fournisseurValue.trim().replace(/[<>:"/\\|?*\s]+/g, "-") || "Sans-fournisseur";
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
+    const pageW = 210;
+    const pageH = 297;
+
+    // PAGE 1 : fiche récap
+    pdf.setFillColor(26,58,42);
+    pdf.rect(0,0,pageW,28,"F");
+
+    pdf.setTextColor(245,166,35);
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica","bold");
+    pdf.text("GCF – Génie Civil Frontonnais",14,12);
+
+    pdf.setTextColor(255,255,255);
+    pdf.setFontSize(10);
+    pdf.setFont("helvetica","normal");
+    pdf.text("Bon de livraison N° " + numero, 14, 22);
+
+    pdf.setDrawColor(200,64,10);
+    pdf.setLineWidth(0.8);
+    pdf.line(14,32,196,32);
+
+    const rows = [
+      ["Date", document.getElementById("date").value || "—"],
+      ["Affaire", document.getElementById("affaire").value || "—"],
+      ["Chef de chantier", document.getElementById("chef").value || "—"],
+      ["Fournisseur", fournisseurValue || "—"],
+      ["Fournitures", document.getElementById("detail").value || "—"]
+    ];
+
+    let y = 42;
+    rows.forEach(([label, value]) => {
+      pdf.setFont("helvetica","bold");
+      pdf.setFontSize(9);
+      pdf.setTextColor(120,113,108);
+      pdf.text(label, 14, y);
+
+      pdf.setFont("helvetica","normal");
+      pdf.setTextColor(28,25,23);
+      const lines = pdf.splitTextToSize(String(value), 130);
+      pdf.text(lines, 65, y);
+
+      y += lines.length > 1 ? (lines.length * 5.5 + 2) : 8;
+    });
+
+    // PAGES PHOTOS
+    for(let i = 0; i < photos.length; i++){
+      pdf.addPage();
+
+      const img = new Image();
+      img.src = photos[i];
+
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const maxW = 190;
+      const maxH = 277;
+      const ratio = Math.min(maxW / img.width, maxH / img.height);
+      const w = img.width * ratio;
+      const h = img.height * ratio;
+      const x = (pageW - w) / 2;
+      const yImg = (pageH - h) / 2;
+
+      pdf.addImage(photos[i], "JPEG", x, yImg, w, h);
+    }
+
+    const fileName = numero + "-" + safeFournisseur + ".pdf";
+    pdf.save(fileName);
+    lastPdf = fileName;
+
+    toast("PDF généré !");
+  } catch(error){
+    console.error(error);
+    alert("Erreur lors de la génération du PDF");
+  }
 }
 
 document.getElementById("btnPdf").onclick = generatePdf;
 
 function openMailTo(email){
   const affaire = document.getElementById("affaire").value || "";
-  const subject = encodeURIComponent((affaire||"Affaire") + " – Enregistrement BL");
-  const body = encodeURIComponent("Ci-joint le BL " + (numero||"") + "\nFichier PDF : " + lastPdf);
+  const subject = encodeURIComponent((affaire || "Affaire") + " – Enregistrement BL");
+  const body = encodeURIComponent("Ci-joint le BL " + (numero || "") + "\nFichier PDF : " + (lastPdf || "non généré"));
   window.location = "mailto:" + email + "?subject=" + subject + "&body=" + body;
 }
+
 document.getElementById("btnMailRomain").onclick = () => openMailTo("romain.prieur@gcfrontonnais.fr");
 document.getElementById("btnMailMorgan").onclick = () => openMailTo("morgan.lanaspeze@gcfrontonnais.fr");
 
 document.getElementById("btnReset").onclick = () => {
   if(!confirm("Réinitialiser le bon ?")) return;
-  numero=null; photos=[]; lastPdf="";
+
+  numero = null;
+  photos = [];
+  lastPdf = "";
+
   document.getElementById("startCard").classList.remove("hidden");
   document.getElementById("numeroCard").classList.add("hidden");
-  document.getElementById("date").value=today();
-  document.getElementById("affaire").value="";
-  document.getElementById("chef").value="";
-  document.getElementById("fournisseur").value="";
-  document.getElementById("detail").value="";
-  renderThumbs(); toast("Bon réinitialisé");
+  document.getElementById("date").value = today();
+  document.getElementById("affaire").value = "";
+  document.getElementById("chef").value = "";
+  document.getElementById("fournisseur").value = "";
+  document.getElementById("detail").value = "";
+
+  renderThumbs();
+  toast("Bon réinitialisé");
 };
 
 document.getElementById("date").value = today();
 populateLists();
 renderThumbs();
 </script>
+
 </body>
 </html>
