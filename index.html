@@ -50,42 +50,47 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 
 <div class="wrap">
 
-  <div class="card">
-    <div class="step"><div class="badge">1</div><b>Générer le numéro</b></div>
-    <div id="startCard">
-      <button id="btnGen" class="btn-primary">Générer le numéro</button>
-    </div>
-    <div id="numeroCard" class="hidden">
-      <div class="bigNum" id="numeroBox"></div>
-      <button id="btnRegen" class="btn-secondary">Regénérer</button>
-    </div>
+<div class="card">
+  <div class="step"><div class="badge">1</div><b>Générer le numéro</b></div>
+  <div id="startCard">
+    <button id="btnGen" class="btn-primary">Générer le numéro</button>
   </div>
+  <div id="numeroCard" class="hidden">
+    <div class="bigNum" id="numeroBox"></div>
+    <button id="btnRegen" class="btn-secondary">Regénérer</button>
+  </div>
+</div>
 
-  <div class="card">
-    <div class="step"><div class="badge">2</div><b>Photos du BL</b></div>
-    <div class="thumb-row" id="thumbRow"></div>
-    <input id="galleryInput" type="file" accept="image/*" class="hidden">
-    <input id="cameraInput" type="file" accept="image/*" capture="environment" class="hidden">
-  </div>
+<div class="card">
+  <div class="step"><div class="badge">2</div><b>Photos du BL</b></div>
+  <div class="thumb-row" id="thumbRow"></div>
+  <input id="galleryInput" type="file" accept="image/*" class="hidden">
+  <input id="cameraInput" type="file" accept="image/*" capture="environment" class="hidden">
+</div>
 
-  <div class="card">
-    <div class="step"><div class="badge">3</div><b>Données du bon</b></div>
-    <div class="grid">
-      <div><label>Date</label><input id="date" type="date"></div>
-      <div><label>Affaire</label><input id="affaire" list="affairesList" autocomplete="off"><datalist id="affairesList"></datalist></div>
-      <div><label>Chef de chantier</label><input id="chef" list="chefsList" autocomplete="off"><datalist id="chefsList"></datalist></div>
-      <div><label>Fournisseur</label><input id="fournisseur"></div>
-      <div style="grid-column:1/-1"><label>Détail / Fournitures</label><input id="detail" placeholder="Câble HTA, armoires…"></div>
-    </div>
-  </div>
+<div class="card">
+  <div class="step"><div class="badge">3</div><b>Données du bon</b></div>
+  <div class="grid">
+    <div><label>Date</label><input id="date" type="date"></div>
+    <div><label>Affaire</label><input id="affaire" list="affairesList" autocomplete="off"><datalist id="affairesList"></datalist></div>
 
-  <div class="card">
-    <div class="step"><div class="badge">4</div><b>PDF et Mail</b></div>
-    <button id="btnPdf" class="btn-primary">Générer le PDF</button>
-    <button id="btnMailRomain" class="btn-secondary">Envoyer mail Romain</button>
-    <button id="btnMailMorgan" class="btn-secondary">Envoyer mail Morgan</button>
-    <button id="btnReset" class="btn-secondary">Réinitialiser</button>
+    <div><label>Chef de chantier</label><input id="chef" list="chefsList" autocomplete="off"><datalist id="chefsList"></datalist></div>
+    <div><label>Fournisseur</label><input id="fournisseur"></div>
+
+    <div style="grid-column:1/-1"><label>Prix (€ HT)</label><input id="prix" type="number" step="0.01" inputmode="decimal"></div>
+    <div style="grid-column:1/-1"><label>Prestation</label><input id="prestation"></div>
+
+    <div style="grid-column:1/-1"><label>Détail / Fournitures</label><input id="detail" placeholder="Câble HTA, armoires…"></div>
   </div>
+</div>
+
+<div class="card">
+  <div class="step"><div class="badge">4</div><b>PDF et Mail</b></div>
+  <button id="btnPdf" class="btn-primary">Générer le PDF</button>
+  <button id="btnMailRomain" class="btn-secondary">Envoyer mail Romain</button>
+  <button id="btnMailMorgan" class="btn-secondary">Envoyer mail Morgan</button>
+  <button id="btnReset" class="btn-secondary">Réinitialiser</button>
+</div>
 
 </div>
 
@@ -146,7 +151,7 @@ function today(){
 
 function genNum(){
   const d = new Date();
-  const p = v => String(v).padStart(2,"0");
+  const p = v => String(v).padStart(2, "0");
   return String(d.getFullYear()).slice(2)
     + p(d.getMonth()+1)
     + p(d.getDate())
@@ -231,7 +236,6 @@ function startCrop(src){
 function openCropModal(){
   cropModal.classList.remove("hidden");
   resizeCropCanvas();
-
   const m = 0.08;
   cropPoints = [
     {x:displayed.x + displayed.w * m,     y:displayed.y + displayed.h * m},
@@ -239,7 +243,6 @@ function openCropModal(){
     {x:displayed.x + displayed.w * (1-m), y:displayed.y + displayed.h * (1-m)},
     {x:displayed.x + displayed.w * m,     y:displayed.y + displayed.h * (1-m)}
   ];
-
   drawCropScene();
 }
 
@@ -261,7 +264,6 @@ function resizeCropCanvas(){
   const h = ih * scale;
   const x = (rect.width - w) / 2;
   const y = (rect.height - h) / 2;
-
   displayed = {x, y, w, h};
 }
 
@@ -273,9 +275,7 @@ function drawCropScene(){
   cropCtx.lineWidth = 3;
   cropCtx.beginPath();
   cropCtx.moveTo(cropPoints[0].x, cropPoints[0].y);
-  for(let i = 1; i < cropPoints.length; i++){
-    cropCtx.lineTo(cropPoints[i].x, cropPoints[i].y);
-  }
+  for(let i = 1; i < cropPoints.length; i++) cropCtx.lineTo(cropPoints[i].x, cropPoints[i].y);
   cropCtx.closePath();
   cropCtx.stroke();
 
@@ -300,7 +300,6 @@ handles.forEach((h, i) => {
 
 cropWrap.addEventListener("pointermove", e => {
   if(activeHandle === -1) return;
-
   const rect = cropWrap.getBoundingClientRect();
   cropPoints[activeHandle].x = e.clientX - rect.left;
   cropPoints[activeHandle].y = e.clientY - rect.top;
@@ -365,13 +364,14 @@ async function generatePdf(){
 
     const fournisseurValue = document.getElementById("fournisseur").value || "Sans-fournisseur";
     const safeFournisseur = fournisseurValue.trim().replace(/[<>:"/\\|?*\s]+/g, "-") || "Sans-fournisseur";
+    const prixValue = document.getElementById("prix").value;
+    const prestationValue = document.getElementById("prestation").value || "—";
 
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
+    const pdf = new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
     const pageW = 210;
     const pageH = 297;
 
-    // PAGE 1 : fiche récap
     pdf.setFillColor(26,58,42);
     pdf.rect(0,0,pageW,28,"F");
 
@@ -394,6 +394,8 @@ async function generatePdf(){
       ["Affaire", document.getElementById("affaire").value || "—"],
       ["Chef de chantier", document.getElementById("chef").value || "—"],
       ["Fournisseur", fournisseurValue || "—"],
+      ["Prix HT", prixValue ? (prixValue + " €") : "—"],
+      ["Prestation", prestationValue || "—"],
       ["Fournitures", document.getElementById("detail").value || "—"]
     ];
 
@@ -412,7 +414,6 @@ async function generatePdf(){
       y += lines.length > 1 ? (lines.length * 5.5 + 2) : 8;
     });
 
-    // PAGES PHOTOS
     for(let i = 0; i < photos.length; i++){
       pdf.addPage();
 
@@ -451,7 +452,10 @@ document.getElementById("btnPdf").onclick = generatePdf;
 function openMailTo(email){
   const affaire = document.getElementById("affaire").value || "";
   const subject = encodeURIComponent((affaire || "Affaire") + " – Enregistrement BL");
-  const body = encodeURIComponent("Ci-joint le BL " + (numero || "") + "\nFichier PDF : " + (lastPdf || "non généré"));
+  const body = encodeURIComponent(
+    "Ci-joint le BL " + (numero || "") +
+    "\nFichier PDF : " + (lastPdf || "non généré")
+  );
   window.location = "mailto:" + email + "?subject=" + subject + "&body=" + body;
 }
 
@@ -471,6 +475,8 @@ document.getElementById("btnReset").onclick = () => {
   document.getElementById("affaire").value = "";
   document.getElementById("chef").value = "";
   document.getElementById("fournisseur").value = "";
+  document.getElementById("prix").value = "";
+  document.getElementById("prestation").value = "";
   document.getElementById("detail").value = "";
 
   renderThumbs();
@@ -481,6 +487,5 @@ document.getElementById("date").value = today();
 populateLists();
 renderThumbs();
 </script>
-
 </body>
 </html>
