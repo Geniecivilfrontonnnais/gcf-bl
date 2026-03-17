@@ -30,6 +30,10 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 .badge{width:28px;height:28px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
 .hidden{display:none!important}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--green);color:#fff;padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;z-index:30;box-shadow:0 8px 20px rgba(0,0,0,.18)}
+.suggestions{position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid var(--line);border-radius:10px;margin-top:4px;max-height:220px;overflow-y:auto;z-index:40;box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.suggestion-item{padding:10px 12px;cursor:pointer;font-size:15px;border-bottom:1px solid #f0ece6}
+.suggestion-item:last-child{border-bottom:none}
+.suggestion-item:hover{background:#F5F2ED}
 
 /* Recadrage */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;display:flex;flex-direction:column}
@@ -76,10 +80,10 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 
     <div><label>Chef de chantier</label><input id="chef" list="chefsList" autocomplete="off"><datalist id="chefsList"></datalist></div>
 
-    <div>
+    <div style="position:relative">
       <label>Fournisseur</label>
-      <input id="fournisseur" list="fournisseursList" autocomplete="off">
-      <datalist id="fournisseursList"></datalist>
+      <input id="fournisseur" type="text" autocomplete="off">
+      <div id="fournisseurSuggestions" class="suggestions hidden"></div>
     </div>
 
     <div style="grid-column:1/-1"><label>Prix (€ HT)</label><input id="prix" type="number" step="0.01" inputmode="decimal"></div>
@@ -149,73 +153,312 @@ const AFFAIRES = ["000 STOCK", "001 FRAIS GENERAUX", "002 INVESTISSEMENT", "073 
 const CHEFS = ["Anthony CABROL","Lionel ALRAM","Guillaume VANGREVELYNGHE","Morgan LANASPEZE","Samuel REINA","Eric LAGARDE","Juanito MAILLOT","David DA COSTA","Romain PRIEUR","Anthony LAGARDE","Nicolas COIG","Maxime BARTHES","Pascal PONS","David LOEC","Ludovic BARDOU","Hector GIMENEZ","Duncan GODINEAU","Christel FAUGERE","Martins Pereira VITOR MANUEL","Thomas CHAUVAN","Gabriel DESTACAMP","José CAMPOS","Thibaud MARIE","Hervé ZANARDO","Romiro DOMINGUES"];
 
 const FOURNISSEURS = [
-  "CCL",
-  "PointP",
-  "Chausson",
-  "r-b",
-  "Thuries",
-  "Kiloutou",
-  "Loxam",
-  "Sarremejean",
-  "Lafarge",
-  "Vicat",
-  "Garrouste",
-  "Cemex",
-  "Sabea",
-  "Iveco",
-  "Alphapipe",
-  "SBCT",
-  "Unibéton",
-  "Courcelle",
-  "Urbaloc",
-  "Les Graviers garonnais",
-  "Aldr",
-  "Lagune",
-  "Nexstone",
-  "Cofrasud",
-  "Locamax",
-  "BLS",
-  "Autaa",
-  "Mediaco",
-  "Altrad",
-  "Denjean",
-  "Retis solutions",
-  "Loca64",
-  "François Industrie",
-  "Mat'Equip 31",
-  "Delmonico",
-  "Daniel",
-  "ADLTP",
-  "Prolians",
-  "Charrin",
-  "Innov tp",
-  "Rexel",
-  "SABTP",
-  "Bricomarché",
-  "BMI Stradal",
-  "Nasal",
-  "Delample VRD",
-  "Barthas",
-  "pum plastiques",
-  "Weldom",
-  "Foselev",
+  "A2B",
+  "AB Mat",
   "abcvl",
-  "Delile",
-  "Lapeyronie",
+  "Abmat",
+  "Actis location",
+  "ADLTP",
+  "Agoarena",
+  "Alcam",
+  "Aldr",
+  "Alphapipe",
+  "Altrad",
+  "Alvéa",
+  "Alves frères",
+  "Apiradour",
+  "APROCHIM",
+  "Aquitaine béton",
+  "Arnaud location",
+  "ASE Exploitation",
+  "Aspiradour",
+  "Autaa",
+  "Autodistribution",
+  "Baptistan",
+  "Baquey",
+  "Barthas",
+  "Batiland",
+  "Béton contrôlé du comminges",
+  "béton montois",
+  "Béziat carburants",
+  "Bigmat",
+  "BLS",
+  "BMI Stradal",
+  "Bordas vidange",
+  "Brenntag",
+  "Bricomarché",
+  "Buesa",
+  "Buesa TP",
+  "C.C.R",
+  "CCL",
+  "Cemex",
+  "chausson",
+  "Chausson pro",
+  "Chimirec",
+  "Ciffréo Bona",
+  "Cifreo Bona",
+  "Coaxis",
+  "Cofrasud",
+  "Compans carburant",
+  "Controle technique des engins",
+  "Courcelle",
+  "DANIEL",
+  "David gaulard",
+  "Delample VRD",
+  "Delile tp",
+  "Delmonico",
+  "Delzongle",
+  "Denjean",
+  "DITP",
+  "Distri club médical",
+  "Doumen",
+  "EDYCEM BPE",
+  "EIFFAGE route",
+  "Erigec",
+  "Euromaster",
+  "Fargeot",
+  "Foselev",
+  "François industrie",
+  "Garrouste",
+  "Gascogne environnement",
+  "Gédimat",
+  "GT solutions",
+  "HBCM RAMONAGE",
+  "Hecq",
   "Hirsch",
+  "IEM",
+  "Iveco",
+  "JCB ATL 47",
+  "Joucla",
+  "Jourdain",
+  "Kiloutou",
+  "Lagune",
+  "Lafarge",
+  "Lapeyronie",
+  "Lecussan",
+  "Le petit forestier",
+  "Les gravieres garonnaises",
+  "LM béton",
+  "Loca64",
+  "Locamax",
+  "Loxam",
+  "M+ matériaux",
+  "M3M",
+  "M3M Appia",
+  "Maire TP",
+  "MARTIN",
+  "Mat'equip 31",
+  "Mecasoudure",
+  "Mediaco",
+  "Mendez",
+  "Mercadier",
+  "MPS",
+  "Nasal",
+  "Nexstone",
+  "Nicolas Pere et Fils",
+  "Or Equipement",
+  "Paprec",
+  "PBM",
+  "Pene",
+  "Pena",
+  "Pene TP",
+  "Peyrani",
+  "Plaisance",
+  "Point P",
+  "Pointp",
+  "Prolians",
+  "Pum",
+  "Pum plastique",
+  "PUM PLASTIQUE",
+  "R.B",
+  "R-b",
+  "Retis solutions",
+  "Rexel",
+  "Ricard",
+  "RTE",
+  "Sabea",
+  "Sablières malet",
+  "SABTP",
+  "Sarc",
+  "Sarremejean",
+  "SAS Bousquet",
+  "SBCT",
+  "SMDA",
+  "SNB",
+  "Sogea",
+  "Somepose",
+  "Suez",
+  "T2B",
+  "T2B Zinguerie",
+  "T2C",
+  "TARN Bennes Services",
+  "Tcs",
+  "Tellus",
+  "Thirion",
+  "Thuries",
+  "Total Energies",
   "Toujas",
-  "Arnaud location"
+  "Tout faire materiaux",
+  "Unibéton",
+  "Urbaloc",
+  "v2v Flexiloc",
+  "Véolia",
+  "Vicat",
+  "Weldom"
 ];
 
 const PRESTATION_BY_FOURNISSEUR = {
-  "pointp": "Matériaux divers",
-  "chausson": "Matériaux divers",
-  "sarremejean": "Matériaux divers",
-  "cemex": "Granulats",
-  "urbaloc": "Locatier",
-  "bls": "Matériaux divers",
+  "a2b": "Locatier",
+  "ab mat": "Location",
+  "abcvl": "Béton",
+  "abmat": "Location",
+  "actis location": "Location",
+  "adltp": "Locatier",
+  "agoarena": "Granulats",
+  "alcam": "Matériaux divers",
+  "aldr": "Locatier",
+  "alphapipe": "Matériaux divers",
   "altrad": "Location",
-  "nexstone": "Matériaux divers"
+  "alvea": "Matériaux divers",
+  "alves freres": "Matériaux divers",
+  "apiradour": "Locatier",
+  "aprochim": "Locatier",
+  "aquitaine beton": "Béton",
+  "arnaud location": "Location",
+  "ase exploitation": "Matériaux divers",
+  "aspiradour": "Locatier",
+  "autaa": "Locatier",
+  "autodistribution": "Matériaux divers",
+  "baptistan": "Matériaux divers",
+  "baquey": "Location",
+  "barthas": "Locatier",
+  "batiland": "Matériaux divers",
+  "beton controle du comminges": "Béton",
+  "beton montois": "Béton",
+  "beziat carburants": "Matériaux divers",
+  "bigmat": "Matériaux divers",
+  "bls": "Matériaux divers",
+  "bmi stradal": "Matériaux divers",
+  "bordas vidange": "Locatier",
+  "brenntag": "Matériaux divers",
+  "bricomarche": "Matériaux divers",
+  "buesa": "Locatier",
+  "buesa tp": "Locatier",
+  "c.c.r": "Location",
+  "ccl": "Matériaux divers",
+  "cemex": "Granulats",
+  "chausson": "Matériaux divers",
+  "chausson pro": "Matériaux divers",
+  "chimirec": "Locatier",
+  "ciffreo bona": "Matériaux divers",
+  "cifreo bona": "Matériaux divers",
+  "coaxis": "Location",
+  "cofrasud": "Matériaux divers",
+  "compans carburant": "Matériaux divers",
+  "controle technique des engins": "Locatier",
+  "courcelle": "Locatier",
+  "daniel": "Béton",
+  "david gaulard": "Location",
+  "delample vrd": "Locatier",
+  "delile tp": "Matériaux divers",
+  "delmonico": "Béton",
+  "delzongle": "Matériaux divers",
+  "denjean": "Granulats",
+  "ditp": "Matériaux divers",
+  "distri club medical": "Matériaux divers",
+  "doumen": "Locatier",
+  "edycem bpe": "Béton",
+  "eiffage route": "Locatier",
+  "erigec": "Matériaux divers",
+  "euromaster": "Matériaux divers",
+  "fargeot": "Location",
+  "foselev": "Locatier",
+  "francois industrie": "Béton",
+  "garrouste": "Béton",
+  "gascogne environnement": "Locatier",
+  "gedimat": "Matériaux divers",
+  "gt solutions": "Locatier",
+  "hbcm ramonage": "Locatier",
+  "hecq": "Matériaux divers",
+  "hirsch": "Matériaux divers",
+  "iem": "Matériaux divers",
+  "iveco": "Location",
+  "jcb atl 47": "Locatier",
+  "joucla": "Granulats",
+  "jourdain": "Matériaux divers",
+  "kiloutou": "Location",
+  "lagune": "Matériaux divers",
+  "lafarge": "Béton",
+  "lapeyronie": "Locatier",
+  "lecussan": "Locatier",
+  "le petit forestier": "Location",
+  "les gravieres garonnaises": "Granulats",
+  "lm beton": "Béton",
+  "loca64": "Location",
+  "locamax": "Location",
+  "loxam": "Location",
+  "m+ materiaux": "Matériaux divers",
+  "m3m": "Matériaux divers",
+  "m3m appia": "Matériaux divers",
+  "maire tp": "Locatier",
+  "martin": "Béton",
+  "mat'equip 31": "Location",
+  "mecasoudure": "Matériaux divers",
+  "mediaco": "Locatier",
+  "mendez": "Matériaux divers",
+  "mercadier": "Matériaux divers",
+  "mps": "Matériaux divers",
+  "nasal": "Matériaux divers",
+  "nexstone": "Matériaux divers",
+  "nicolas pere et fils": "Granulats",
+  "or equipement": "Locatier",
+  "paprec": "Locatier",
+  "pbm": "Béton",
+  "pene": "Locatier",
+  "pena": "Locatier",
+  "pene tp": "Locatier",
+  "peyrani": "Granulats",
+  "plaisance": "Location",
+  "point p": "Matériaux divers",
+  "pointp": "Matériaux divers",
+  "prolians": "Matériaux divers",
+  "pum": "Matériaux divers",
+  "pum plastique": "Matériaux divers",
+  "r.b": "Matériaux divers",
+  "r-b": "Matériaux divers",
+  "retis solutions": "Matériaux divers",
+  "rexel": "Matériaux divers",
+  "ricard": "Locatier",
+  "rte": "Matériaux divers",
+  "sabea": "Matériaux divers",
+  "sablieres malet": "Granulats",
+  "sabtp": "Matériaux divers",
+  "sarc": "Locatier",
+  "sarremejean": "Matériaux divers",
+  "sas bousquet": "Granulats",
+  "sbct": "Béton",
+  "smda": "Matériaux divers",
+  "snb": "Locatier",
+  "sogea": "Locatier",
+  "somepose": "Locatier",
+  "suez": "Locatier",
+  "t2b": "Locatier",
+  "t2b zinguerie": "Matériaux divers",
+  "t2c": "Locatier",
+  "tarn bennes services": "Locatier",
+  "tcs": "Location",
+  "tellus": "Location",
+  "thirion": "Matériaux divers",
+  "thuries": "Locatier",
+  "total energies": "Matériaux divers",
+  "toujas": "Béton",
+  "tout faire materiaux": "Matériaux divers",
+  "unibeton": "Béton",
+  "urbaloc": "Locatier",
+  "v2v flexiloc": "Location",
+  "veolia": "Locatier",
+  "vicat": "Béton",
+  "weldom": "Matériaux divers"
 };
 
 let cropImage = null;
@@ -268,11 +511,6 @@ function populateLists(){
   chefList.innerHTML = CHEFS.map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`).join("");
 }
 
-function populateFournisseurs(){
-  const list = document.getElementById("fournisseursList");
-  list.innerHTML = FOURNISSEURS.map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`).join("");
-}
-
 function autoFillPrestation(){
   const fournisseur = document.getElementById("fournisseur").value;
   const prestation = document.getElementById("prestation");
@@ -283,6 +521,57 @@ function autoFillPrestation(){
   } else {
     prestation.value = "";
   }
+}
+
+function getFilteredFournisseurs(search){
+  const s = normalizeFournisseur(search);
+
+  const starts = [];
+  const contains = [];
+
+  for (const f of FOURNISSEURS) {
+    const n = normalizeFournisseur(f);
+
+    if (!s) {
+      starts.push(f);
+    } else if (n.startsWith(s)) {
+      starts.push(f);
+    } else if (n.includes(s)) {
+      contains.push(f);
+    }
+  }
+
+  return starts.concat(contains).slice(0, 12);
+}
+
+function renderFournisseurSuggestions(){
+  const input = document.getElementById("fournisseur");
+  const box = document.getElementById("fournisseurSuggestions");
+  const results = getFilteredFournisseurs(input.value);
+
+  if(results.length === 0){
+    box.innerHTML = "";
+    box.classList.add("hidden");
+    return;
+  }
+
+  box.innerHTML = results.map(f => `<div class="suggestion-item" data-value="${f.replace(/"/g, '&quot;')}">${f}</div>`).join("");
+  box.classList.remove("hidden");
+
+  box.querySelectorAll(".suggestion-item").forEach(item => {
+    item.addEventListener("mousedown", e => {
+      e.preventDefault();
+      input.value = item.dataset.value;
+      box.classList.add("hidden");
+      autoFillPrestation();
+    });
+  });
+}
+
+function hideFournisseurSuggestions(){
+  setTimeout(() => {
+    document.getElementById("fournisseurSuggestions").classList.add("hidden");
+  }, 150);
 }
 
 function renderThumbs(){
@@ -449,7 +738,7 @@ async function generatePdf(){
       y += lines.length > 1 ? (lines.length * 5.5 + 2) : 8;
     });
 
-    for(let i = 0; i < photos.length; i++){
+    for(let i = 0; i < photos.length; i++) {
       pdf.addPage();
 
       const img = new Image();
@@ -476,7 +765,7 @@ async function generatePdf(){
     lastPdf = fileName;
 
     toast("PDF généré !");
-  } catch(error){
+  } catch(error) {
     console.error(error);
     alert("Erreur lors de la génération du PDF");
   }
@@ -519,7 +808,7 @@ cropWrap.addEventListener("pointermove", e => {
 window.addEventListener("pointerup", () => activeHandle = -1);
 
 window.addEventListener("resize", () => {
-  if(cropImage && !cropModal.classList.contains("hidden")){
+  if(cropImage && !cropModal.classList.contains("hidden")) {
     resizeCropCanvas();
     drawCropScene();
   }
@@ -559,9 +848,29 @@ document.getElementById("btnValidateCrop").onclick = () => {
   toast("Photo validée");
 };
 
-document.getElementById("fournisseur").addEventListener("input", autoFillPrestation);
-document.getElementById("fournisseur").addEventListener("change", autoFillPrestation);
-document.getElementById("fournisseur").addEventListener("blur", autoFillPrestation);
+const fournisseurInput = document.getElementById("fournisseur");
+
+fournisseurInput.addEventListener("input", () => {
+  renderFournisseurSuggestions();
+  autoFillPrestation();
+});
+
+fournisseurInput.addEventListener("focus", () => {
+  renderFournisseurSuggestions();
+});
+
+fournisseurInput.addEventListener("blur", () => {
+  autoFillPrestation();
+  hideFournisseurSuggestions();
+});
+
+fournisseurInput.addEventListener("change", autoFillPrestation);
+
+document.addEventListener("click", e => {
+  if (!e.target.closest("#fournisseur") && !e.target.closest("#fournisseurSuggestions")) {
+    document.getElementById("fournisseurSuggestions").classList.add("hidden");
+  }
+});
 
 document.getElementById("btnPdf").onclick = generatePdf;
 
@@ -594,6 +903,7 @@ document.getElementById("btnReset").onclick = () => {
   document.getElementById("prix").value = "";
   document.getElementById("prestation").value = "";
   document.getElementById("detail").value = "";
+  document.getElementById("fournisseurSuggestions").classList.add("hidden");
 
   renderThumbs();
   toast("Bon réinitialisé");
@@ -601,7 +911,6 @@ document.getElementById("btnReset").onclick = () => {
 
 document.getElementById("date").value = today();
 populateLists();
-populateFournisseurs();
 renderThumbs();
 </script>
 </body>
