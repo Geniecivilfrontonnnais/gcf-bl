@@ -15,7 +15,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,sans-serif
 .wrap{max-width:900px;margin:0 auto;padding:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
 label{display:block;margin:0 0 6px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase}
-input{width:100%;padding:11px;border:1.5px solid var(--line);border-radius:10px;background:#FAFAF8;font-size:16px}
+input, select{width:100%;padding:11px;border:1.5px solid var(--line);border-radius:10px;background:#FAFAF8;font-size:16px;color:var(--ink)}
 button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;font-size:14px;margin-top:8px;cursor:pointer}
 .btn-primary{background:var(--orange);color:#fff}
 .btn-secondary{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
@@ -78,7 +78,17 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
     <div><label>Fournisseur</label><input id="fournisseur"></div>
 
     <div style="grid-column:1/-1"><label>Prix (€ HT)</label><input id="prix" type="number" step="0.01" inputmode="decimal"></div>
-    <div style="grid-column:1/-1"><label>Prestation</label><input id="prestation"></div>
+
+    <div style="grid-column:1/-1">
+      <label>Prestation</label>
+      <select id="prestation">
+        <option value=""></option>
+        <option value="Béton">Béton</option>
+        <option value="Granulats">Granulats</option>
+        <option value="Locatier Location">Locatier Location</option>
+        <option value="Matériaux divers">Matériaux divers</option>
+      </select>
+    </div>
 
     <div style="grid-column:1/-1"><label>Détail / Fournitures</label><input id="detail" placeholder="Câble HTA, armoires…"></div>
   </div>
@@ -395,7 +405,7 @@ async function generatePdf(){
       ["Chef de chantier", document.getElementById("chef").value || "—"],
       ["Fournisseur", fournisseurValue || "—"],
       ["Prix HT", prixValue ? (prixValue + " €") : "—"],
-      ["Prestation", prestationValue || "—"],
+      ["Prestation", prestationValue],
       ["Fournitures", document.getElementById("detail").value || "—"]
     ];
 
