@@ -136,6 +136,7 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 let numero = null;
 let photos = [];
 let lastPdf = "";
+let ocrRunning = false;
 
 const thumbRow = document.getElementById("thumbRow");
 const gallery = document.getElementById("galleryInput");
@@ -155,159 +156,7 @@ const AFFAIRES = ["000 STOCK", "001 FRAIS GENERAUX", "002 INVESTISSEMENT", "073 
 const CHEFS = ["Anthony CABROL","Lionel ALRAM","Guillaume VANGREVELYNGHE","Morgan LANASPEZE","Samuel REINA","Eric LAGARDE","Juanito MAILLOT","David DA COSTA","Romain PRIEUR","Anthony LAGARDE","Nicolas COIG","Maxime BARTHES","Pascal PONS","David LOEC","Ludovic BARDOU","Hector GIMENEZ","Duncan GODINEAU","Christel FAUGERE","Martins Pereira VITOR MANUEL","Thomas CHAUVAN","Gabriel DESTACAMP","José CAMPOS","Thibaud MARIE","Hervé ZANARDO","Romiro DOMINGUES"];
 
 const FOURNISSEURS = [
-  "A2B",
-  "AB Mat",
-  "abcvl",
-  "Abmat",
-  "Actis location",
-  "ADLTP",
-  "Agoarena",
-  "Alcam",
-  "Aldr",
-  "Alphapipe",
-  "Altrad",
-  "Alvéa",
-  "Alves frères",
-  "Apiradour",
-  "APROCHIM",
-  "Aquitaine béton",
-  "Arnaud location",
-  "ASE Exploitation",
-  "Aspiradour",
-  "Autaa",
-  "Autodistribution",
-  "Baptistan",
-  "Baquey",
-  "Barthas",
-  "Batiland",
-  "Béton contrôlé du comminges",
-  "béton montois",
-  "Béziat carburants",
-  "Bigmat",
-  "BLS",
-  "BMI Stradal",
-  "Bordas vidange",
-  "Brenntag",
-  "Bricomarché",
-  "Buesa",
-  "Buesa TP",
-  "C.C.R",
-  "CCL",
-  "Cemex",
-  "chausson",
-  "Chausson pro",
-  "Chimirec",
-  "Ciffréo Bona",
-  "Cifreo Bona",
-  "Coaxis",
-  "Cofrasud",
-  "Compans carburant",
-  "Controle technique des engins",
-  "Courcelle",
-  "DANIEL",
-  "David gaulard",
-  "Delample VRD",
-  "Delile tp",
-  "Delmonico",
-  "Delzongle",
-  "Denjean",
-  "DITP",
-  "Distri club médical",
-  "Doumen",
-  "EDYCEM BPE",
-  "EIFFAGE route",
-  "Erigec",
-  "Euromaster",
-  "Fargeot",
-  "Foselev",
-  "François industrie",
-  "Frans bonhomme",
-  "Garrouste",
-  "Gascogne environnement",
-  "Gédimat",
-  "GT solutions",
-  "HBCM RAMONAGE",
-  "Hecq",
-  "Hirsch",
-  "IEM",
-  "Iveco",
-  "JCB ATL 47",
-  "Joucla",
-  "Jourdain",
-  "Kiloutou",
-  "Lagune",
-  "Lafarge",
-  "Lapeyronie",
-  "Lecussan",
-  "Le petit forestier",
-  "Les gravieres garonnaises",
-  "LM béton",
-  "Loca64",
-  "Locamax",
-  "Loxam",
-  "M+ matériaux",
-  "M3M",
-  "M3M Appia",
-  "Maire TP",
-  "MARTIN",
-  "Mat'equip 31",
-  "Mecasoudure",
-  "Mediaco",
-  "Mendez",
-  "Mercadier",
-  "MPS",
-  "Nasal",
-  "Nexstone",
-  "Nicolas Pere et Fils",
-  "Or Equipement",
-  "Paprec",
-  "PBM",
-  "Pene",
-  "Pena",
-  "Pene TP",
-  "Peyrani",
-  "Plaisance",
-  "Point P",
-  "Pointp",
-  "Prolians",
-  "Pum",
-  "Pum plastique",
-  "PUM PLASTIQUE",
-  "R.B",
-  "R-b",
-  "Retis solutions",
-  "Rexel",
-  "Ricard",
-  "RTE",
-  "Sabea",
-  "Sablières malet",
-  "SABTP",
-  "Sarc",
-  "Sarremejean",
-  "SAS Bousquet",
-  "SBCT",
-  "SMDA",
-  "SNB",
-  "Sogea",
-  "Somepose",
-  "Suez",
-  "T2B",
-  "T2B Zinguerie",
-  "T2C",
-  "TARN Bennes Services",
-  "Tcs",
-  "Tellus",
-  "Thirion",
-  "Thuries",
-  "Total Energies",
-  "Toujas",
-  "Tout faire materiaux",
-  "Unibéton",
-  "Urbaloc",
-  "v2v Flexiloc",
-  "Véolia",
-  "Vicat",
-  "Weldom"
+  "A2B","AB Mat","abcvl","Abmat","Actis location","ADLTP","Agoarena","Alcam","Aldr","Alphapipe","Altrad","Alvéa","Alves frères","Apiradour","APROCHIM","Aquitaine béton","Arnaud location","ASE Exploitation","Aspiradour","Autaa","Autodistribution","Baptistan","Baquey","Barthas","Batiland","Béton contrôlé du comminges","béton montois","Béziat carburants","Bigmat","BLS","BMI Stradal","Bordas vidange","Brenntag","Bricomarché","Buesa","Buesa TP","C.C.R","CCL","Cemex","chausson","Chausson pro","Chimirec","Ciffréo Bona","Cifreo Bona","Coaxis","Cofrasud","Compans carburant","Controle technique des engins","Courcelle","DANIEL","David gaulard","Delample VRD","Delile tp","Delmonico","Delzongle","Denjean","DITP","Distri club médical","Doumen","EDYCEM BPE","EIFFAGE route","Erigec","Euromaster","Fargeot","Foselev","François industrie","Frans bonhomme","Garrouste","Gascogne environnement","Gédimat","GT solutions","HBCM RAMONAGE","Hecq","Hirsch","IEM","Iveco","JCB ATL 47","Joucla","Jourdain","Kiloutou","Lagune","Lafarge","Lapeyronie","Lecussan","Le petit forestier","Les gravieres garonnaises","LM béton","Loca64","Locamax","Loxam","M+ matériaux","M3M","M3M Appia","Maire TP","MARTIN","Mat'equip 31","Mecasoudure","Mediaco","Mendez","Mercadier","MPS","Nasal","Nexstone","Nicolas Pere et Fils","Or Equipement","Paprec","PBM","Pene","Pena","Pene TP","Peyrani","Plaisance","Point P","Pointp","Prolians","Pum","Pum plastique","PUM PLASTIQUE","R.B","R-b","Retis solutions","Rexel","Ricard","RTE","Sabea","Sablières malet","SABTP","Sarc","Sarremejean","SAS Bousquet","SBCT","SMDA","SNB","Sogea","Somepose","Suez","T2B","T2B Zinguerie","T2C","TARN Bennes Services","Tcs","Tellus","Thirion","Thuries","Total Energies","Toujas","Tout faire materiaux","Unibéton","Urbaloc","v2v Flexiloc","Véolia","Vicat","Weldom"
 ];
 
 const PRESTATION_BY_FOURNISSEUR = {
@@ -577,7 +426,6 @@ function autoFillPrestation(){
 
 function getFilteredFournisseurs(search){
   const s = normalizeFournisseur(search);
-
   const starts = [];
   const contains = [];
 
@@ -628,7 +476,6 @@ function hideFournisseurSuggestions(){
 
 function findFournisseurFromText(rawText){
   const text = normalizeFournisseur(rawText);
-
   if(!text) return "";
 
   for(const alias in FOURNISSEUR_ALIASES){
@@ -648,42 +495,146 @@ function findFournisseurFromText(rawText){
   return "";
 }
 
-async function detectFournisseurFromLastPhoto(){
-  if(!photos.length) return;
+function parseFrenchNumberToFloat(str){
+  if(!str) return NaN;
+
+  let s = String(str)
+    .replace(/\s/g, "")
+    .replace(/[€]/g, "")
+    .replace(/,/g, ".");
+
+  s = s.replace(/[^0-9.]/g, "");
+
+  const parts = s.split(".");
+  if(parts.length > 2){
+    const dec = parts.pop();
+    s = parts.join("") + "." + dec;
+  }
+
+  const val = parseFloat(s);
+  return Number.isFinite(val) ? val : NaN;
+}
+
+function extractHtCandidatesFromText(rawText){
+  if(!rawText) return [];
+
+  const text = rawText.replace(/\r/g, "\n").replace(/[ \t]+/g, " ");
+  const candidates = [];
+
+  const lines = text.split("\n");
+  for(const line of lines){
+    const nline = normalizeFournisseur(line);
+    if(!nline.includes("ht")) continue;
+    if(nline.includes("ttc")) continue;
+
+    const matches = line.match(/\d[\d\s.,]*\d|\d/g);
+    if(!matches) continue;
+
+    for(const m of matches){
+      const val = parseFrenchNumberToFloat(m);
+      if(Number.isFinite(val) && val > 0){
+        candidates.push(val);
+      }
+    }
+  }
+
+  const targetedPatterns = [
+    /total\s*ht(?:\s*net|\s*brut)?[^0-9]{0,20}([0-9][0-9\s.,]*)/gi,
+    /montant\s*ht[^0-9]{0,20}([0-9][0-9\s.,]*)/gi,
+    /net\s*ht[^0-9]{0,20}([0-9][0-9\s.,]*)/gi,
+    /ht[^0-9]{0,20}([0-9][0-9\s.,]*)/gi,
+    /([0-9][0-9\s.,]*)[^a-zA-Z0-9]{0,10}€?\s*ht/gi
+  ];
+
+  for(const pattern of targetedPatterns){
+    let match;
+    while((match = pattern.exec(text)) !== null){
+      const val = parseFrenchNumberToFloat(match[1]);
+      if(Number.isFinite(val) && val > 0){
+        candidates.push(val);
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function formatPriceForInput(value){
+  if(!Number.isFinite(value)) return "";
+  return value.toFixed(2);
+}
+
+async function detectDataFromAllPhotos(){
+  if(!photos.length || ocrRunning) return;
+
+  ocrRunning = true;
 
   try{
-    setOcrStatus("Lecture automatique de la photo…");
+    let fournisseurTrouve = "";
+    let allCandidates = [];
 
-    const imageSrc = photos[photos.length - 1];
+    for(let i = 0; i < photos.length; i++){
+      const pageNumber = i + 1;
 
-    const result = await Tesseract.recognize(
-      imageSrc,
-      "fra",
-      {
-        logger: m => {
-          if(m.status === "recognizing text"){
-            const pct = Math.round((m.progress || 0) * 100);
-            setOcrStatus("Lecture automatique de la photo… " + pct + "%");
+      const result = await Tesseract.recognize(
+        photos[i],
+        "fra",
+        {
+          logger: m => {
+            if(m.status === "recognizing text"){
+              const pct = Math.round((m.progress || 0) * 100);
+              setOcrStatus("Lecture automatique… page " + pageNumber + "/" + photos.length + " - " + pct + "%");
+            }
           }
         }
-      }
-    );
+      );
 
-    const text = result?.data?.text || "";
-    const fournisseurTrouve = findFournisseurFromText(text);
+      const text = result?.data?.text || "";
+
+      if(!fournisseurTrouve){
+        const candidateFournisseur = findFournisseurFromText(text);
+        if(candidateFournisseur){
+          fournisseurTrouve = candidateFournisseur;
+        }
+      }
+
+      const pageCandidates = extractHtCandidatesFromText(text);
+      if(pageCandidates.length){
+        allCandidates = allCandidates.concat(pageCandidates);
+      }
+    }
 
     if(fournisseurTrouve){
       document.getElementById("fournisseur").value = fournisseurTrouve;
       document.getElementById("fournisseurSuggestions").classList.add("hidden");
       autoFillPrestation();
-      setOcrStatus("Fournisseur détecté : " + fournisseurTrouve);
+    }
+
+    if(allCandidates.length){
+      const maxHt = Math.max(...allCandidates);
+      document.getElementById("prix").value = formatPriceForInput(maxHt);
+    }
+
+    const fournisseurValue = document.getElementById("fournisseur").value;
+    const prixValue = document.getElementById("prix").value;
+
+    if(fournisseurValue && prixValue){
+      setOcrStatus("Fournisseur détecté : " + fournisseurValue + " | Prix HT détecté : " + prixValue + " €");
+      toast("Fournisseur et prix détectés");
+    } else if(fournisseurValue){
+      setOcrStatus("Fournisseur détecté : " + fournisseurValue);
       toast("Fournisseur détecté");
+    } else if(prixValue){
+      setOcrStatus("Prix HT détecté : " + prixValue + " €");
+      toast("Prix détecté");
     } else {
-      setOcrStatus("Aucun fournisseur reconnu automatiquement");
+      setOcrStatus("Aucune donnée reconnue automatiquement");
     }
   } catch(error){
     console.error(error);
     setOcrStatus("Erreur de lecture automatique");
+  } finally {
+    ocrRunning = false;
   }
 }
 
@@ -698,6 +649,7 @@ function renderThumbs(){
       e.stopPropagation();
       photos.splice(i, 1);
       renderThumbs();
+      setOcrStatus("");
     };
     thumbRow.appendChild(d);
   });
@@ -961,7 +913,7 @@ document.getElementById("btnValidateCrop").onclick = () => {
   toast("Photo validée");
 
   setTimeout(() => {
-    detectFournisseurFromLastPhoto();
+    detectDataFromAllPhotos();
   }, 150);
 };
 
@@ -1010,6 +962,7 @@ document.getElementById("btnReset").onclick = () => {
   numero = null;
   photos = [];
   lastPdf = "";
+  ocrRunning = false;
 
   document.getElementById("startCard").classList.remove("hidden");
   document.getElementById("numeroCard").classList.add("hidden");
