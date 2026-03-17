@@ -70,6 +70,7 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
   <div class="thumb-row" id="thumbRow"></div>
   <input id="galleryInput" type="file" accept="image/*" class="hidden">
   <input id="cameraInput" type="file" accept="image/*" capture="environment" class="hidden">
+  <div id="ocrStatus" class="hidden" style="margin-top:10px;font-size:14px;color:var(--muted)"></div>
 </div>
 
 <div class="card">
@@ -129,6 +130,7 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <script>
 let numero = null;
@@ -463,6 +465,43 @@ const PRESTATION_BY_FOURNISSEUR = {
   "weldom": "Matériaux divers"
 };
 
+const FOURNISSEUR_ALIASES = {
+  "point p": "Point P",
+  "pointp": "Pointp",
+  "point.p": "Point P",
+  "chausson materiaux": "chausson",
+  "chausson matériaux": "chausson",
+  "cemex": "Cemex",
+  "kiloutou": "Kiloutou",
+  "loxam": "Loxam",
+  "altrad": "Altrad",
+  "aldr": "Aldr",
+  "ccl": "CCL",
+  "urbaloc": "Urbaloc",
+  "bls": "BLS",
+  "nexstone": "Nexstone",
+  "sarremejean": "Sarremejean",
+  "pum": "Pum",
+  "pum plastique": "Pum plastique",
+  "pum plastiques": "Pum plastique",
+  "lafarge": "Lafarge",
+  "unibeton": "Unibéton",
+  "unibéton": "Unibéton",
+  "vicat": "Vicat",
+  "denjean": "Denjean",
+  "garrouste": "Garrouste",
+  "frans bonhomme": "Frans bonhomme",
+  "francois industrie": "François industrie",
+  "françois industrie": "François industrie",
+  "rexel": "Rexel",
+  "prolians": "Prolians",
+  "thuries": "Thuries",
+  "delmonico": "Delmonico",
+  "sabtp": "SABTP",
+  "sabea": "Sabea",
+  "cofrasud": "Cofrasud"
+};
+
 let cropImage = null;
 let cropPoints = [];
 let activeHandle = -1;
@@ -474,6 +513,17 @@ function toast(msg){
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2200);
+}
+
+function setOcrStatus(text){
+  const box = document.getElementById("ocrStatus");
+  if(!text){
+    box.textContent = "";
+    box.classList.add("hidden");
+    return;
+  }
+  box.textContent = text;
+  box.classList.remove("hidden");
 }
 
 function today(){
@@ -574,6 +624,67 @@ function hideFournisseurSuggestions(){
   setTimeout(() => {
     document.getElementById("fournisseurSuggestions").classList.add("hidden");
   }, 150);
+}
+
+function findFournisseurFromText(rawText){
+  const text = normalizeFournisseur(rawText);
+
+  if(!text) return "";
+
+  for(const alias in FOURNISSEUR_ALIASES){
+    if(text.includes(normalizeFournisseur(alias))){
+      return FOURNISSEUR_ALIASES[alias];
+    }
+  }
+
+  const sorted = [...FOURNISSEURS].sort((a, b) => b.length - a.length);
+  for(const fournisseur of sorted){
+    const f = normalizeFournisseur(fournisseur);
+    if(f && text.includes(f)){
+      return fournisseur;
+    }
+  }
+
+  return "";
+}
+
+async function detectFournisseurFromLastPhoto(){
+  if(!photos.length) return;
+
+  try{
+    setOcrStatus("Lecture automatique de la photo…");
+
+    const imageSrc = photos[photos.length - 1];
+
+    const result = await Tesseract.recognize(
+      imageSrc,
+      "fra",
+      {
+        logger: m => {
+          if(m.status === "recognizing text"){
+            const pct = Math.round((m.progress || 0) * 100);
+            setOcrStatus("Lecture automatique de la photo… " + pct + "%");
+          }
+        }
+      }
+    );
+
+    const text = result?.data?.text || "";
+    const fournisseurTrouve = findFournisseurFromText(text);
+
+    if(fournisseurTrouve){
+      document.getElementById("fournisseur").value = fournisseurTrouve;
+      document.getElementById("fournisseurSuggestions").classList.add("hidden");
+      autoFillPrestation();
+      setOcrStatus("Fournisseur détecté : " + fournisseurTrouve);
+      toast("Fournisseur détecté");
+    } else {
+      setOcrStatus("Aucun fournisseur reconnu automatiquement");
+    }
+  } catch(error){
+    console.error(error);
+    setOcrStatus("Erreur de lecture automatique");
+  }
 }
 
 function renderThumbs(){
@@ -848,6 +959,10 @@ document.getElementById("btnValidateCrop").onclick = () => {
   renderThumbs();
   closeCropModal();
   toast("Photo validée");
+
+  setTimeout(() => {
+    detectFournisseurFromLastPhoto();
+  }, 150);
 };
 
 const fournisseurInput = document.getElementById("fournisseur");
@@ -906,6 +1021,7 @@ document.getElementById("btnReset").onclick = () => {
   document.getElementById("prestation").value = "";
   document.getElementById("detail").value = "";
   document.getElementById("fournisseurSuggestions").classList.add("hidden");
+  setOcrStatus("");
 
   renderThumbs();
   toast("Bon réinitialisé");
