@@ -75,7 +75,12 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
     <div><label>Affaire</label><input id="affaire" list="affairesList" autocomplete="off"><datalist id="affairesList"></datalist></div>
 
     <div><label>Chef de chantier</label><input id="chef" list="chefsList" autocomplete="off"><datalist id="chefsList"></datalist></div>
-    <div><label>Fournisseur</label><input id="fournisseur"></div>
+
+    <div>
+      <label>Fournisseur</label>
+      <input id="fournisseur" list="fournisseursList" autocomplete="off">
+      <datalist id="fournisseursList"></datalist>
+    </div>
 
     <div style="grid-column:1/-1"><label>Prix (€ HT)</label><input id="prix" type="number" step="0.01" inputmode="decimal"></div>
 
@@ -143,6 +148,76 @@ const handles = [
 const AFFAIRES = ["000 STOCK", "001 FRAIS GENERAUX", "002 INVESTISSEMENT", "073 LA GLACIERE", "108 LA GLACIERE", "143 NERAC GEGC", "153 VOINGT", "154 SOULOM", "162 CARBONNE PCCN", "170 GRAMONT REPRISE CLOTURE", "171 AUCH DEMOL CONDOS", "172 CARBONNE", "173 VIC FEZENSAC TRVX PREPA", "178 BALMA REPRISE SOGC", "179 CASTELSARRASIN BAT", "182 CISSAC", "183 MONTGROS EIFFAGE", "185 LA VERNELLE GEGC", "197 VIC FEZENSAC", "198 CASTELSARRASIN GEGC", "201 CONSTRUCTYS 2025", "208 MARSILLON ZEROPHYTO", "212 JALIS", "215 AUDON CANIVEAU", "216 CARBONNE GC", "217 THIVIERS INEO", "218 UNET INEO", "219 VALLON RTE", "220 LUZIERES OBTURATION NUISIBLES", "221 LARDIT", "222 SABLAGE CANIVEAUX", "223 LACAUNE REPRISE PISTES", "224 SEYSSES", "225 THIVIERS GEGC", "226 MONTGROS LOGE TR", "227 FERROUGE BO", "228 DALLES CNVX MPS + MONTREAL", "229 UNET GEGC", "230 LAFOURGUETTE TELECOM", "231  LARDIT EIFFAGE BO", "232 NEUSSARGUES", "233 ARVIEU TR312", "234 LERE FOUILLE HTA", "235 NEUSSARGUES INEO", "236 PREGRAND PETITS TVX", "237 REQUISTA GRANDS TVX", "238 MOUNEDE TELECOM", "239 REVEL FOUILLE HTA", "240 PARENTIS SOUTENEMENT", "241 LEGUEVIN TELECOM", "242 MEZIN PORTAIL", "243 DOUDRAC PORTAIL", "244 RIVENEUVE", "245 PASSAGE D'AGEN CNVX", "246 LUXEY CLOTURE", "247 NESTE", "248 RISCLE PT", "249 RISCLE INEO", "250 MURET DALLE", "251 ST HENRI BO", "252 ST SEVER TCFM", "253 ROJA DJ", "254 MASSEUBE"];
 const CHEFS = ["Anthony CABROL","Lionel ALRAM","Guillaume VANGREVELYNGHE","Morgan LANASPEZE","Samuel REINA","Eric LAGARDE","Juanito MAILLOT","David DA COSTA","Romain PRIEUR","Anthony LAGARDE","Nicolas COIG","Maxime BARTHES","Pascal PONS","David LOEC","Ludovic BARDOU","Hector GIMENEZ","Duncan GODINEAU","Christel FAUGERE","Martins Pereira VITOR MANUEL","Thomas CHAUVAN","Gabriel DESTACAMP","José CAMPOS","Thibaud MARIE","Hervé ZANARDO","Romiro DOMINGUES"];
 
+const FOURNISSEURS = [
+  "CCL",
+  "PointP",
+  "Chausson",
+  "r-b",
+  "Thuries",
+  "Kiloutou",
+  "Loxam",
+  "Sarremejean",
+  "Lafarge",
+  "Vicat",
+  "Garrouste",
+  "Cemex",
+  "Sabea",
+  "Iveco",
+  "Alphapipe",
+  "SBCT",
+  "Unibéton",
+  "Courcelle",
+  "Urbaloc",
+  "Les Graviers garonnais",
+  "Aldr",
+  "Lagune",
+  "Nexstone",
+  "Cofrasud",
+  "Locamax",
+  "BLS",
+  "Autaa",
+  "Mediaco",
+  "Altrad",
+  "Denjean",
+  "Retis solutions",
+  "Loca64",
+  "François Industrie",
+  "Mat'Equip 31",
+  "Delmonico",
+  "Daniel",
+  "ADLTP",
+  "Prolians",
+  "Charrin",
+  "Innov tp",
+  "Rexel",
+  "SABTP",
+  "Bricomarché",
+  "BMI Stradal",
+  "Nasal",
+  "Delample VRD",
+  "Barthas",
+  "pum plastiques",
+  "Weldom",
+  "Foselev",
+  "abcvl",
+  "Delile",
+  "Lapeyronie",
+  "Hirsch",
+  "Toujas",
+  "Arnaud location"
+];
+
+const PRESTATION_BY_FOURNISSEUR = {
+  "pointp": "Matériaux divers",
+  "chausson": "Matériaux divers",
+  "sarremejean": "Matériaux divers",
+  "cemex": "Granulats",
+  "urbaloc": "Locatier",
+  "bls": "Matériaux divers",
+  "altrad": "Location",
+  "nexstone": "Matériaux divers"
+};
+
 let cropImage = null;
 let cropPoints = [];
 let activeHandle = -1;
@@ -177,14 +252,37 @@ function setNumero(n){
   document.getElementById("numeroCard").classList.remove("hidden");
 }
 
-document.getElementById("btnGen").onclick = () => setNumero(genNum());
-document.getElementById("btnRegen").onclick = () => setNumero(genNum());
+function normalizeFournisseur(value){
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 function populateLists(){
   const affList = document.getElementById("affairesList");
   const chefList = document.getElementById("chefsList");
   affList.innerHTML = AFFAIRES.map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`).join("");
   chefList.innerHTML = CHEFS.map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`).join("");
+}
+
+function populateFournisseurs(){
+  const list = document.getElementById("fournisseursList");
+  list.innerHTML = FOURNISSEURS.map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`).join("");
+}
+
+function autoFillPrestation(){
+  const fournisseur = document.getElementById("fournisseur").value;
+  const prestation = document.getElementById("prestation");
+  const key = normalizeFournisseur(fournisseur);
+
+  if(PRESTATION_BY_FOURNISSEUR[key]){
+    prestation.value = PRESTATION_BY_FOURNISSEUR[key];
+  } else {
+    prestation.value = "";
+  }
 }
 
 function renderThumbs(){
@@ -223,20 +321,6 @@ function toData(file){
     r.readAsDataURL(file);
   });
 }
-
-gallery.onchange = async e => {
-  const f = e.target.files[0];
-  if(!f) return;
-  startCrop(await toData(f));
-  e.target.value = "";
-};
-
-camera.onchange = async e => {
-  const f = e.target.files[0];
-  if(!f) return;
-  startCrop(await toData(f));
-  e.target.value = "";
-};
 
 function startCrop(src){
   cropImage = new Image();
@@ -300,66 +384,6 @@ function clampPoint(p){
   p.x = Math.max(displayed.x, Math.min(displayed.x + displayed.w, p.x));
   p.y = Math.max(displayed.y, Math.min(displayed.y + displayed.h, p.y));
 }
-
-handles.forEach((h, i) => {
-  h.addEventListener("pointerdown", e => {
-    e.preventDefault();
-    activeHandle = i;
-    h.setPointerCapture(e.pointerId);
-  });
-});
-
-cropWrap.addEventListener("pointermove", e => {
-  if(activeHandle === -1) return;
-  const rect = cropWrap.getBoundingClientRect();
-  cropPoints[activeHandle].x = e.clientX - rect.left;
-  cropPoints[activeHandle].y = e.clientY - rect.top;
-  clampPoint(cropPoints[activeHandle]);
-  drawCropScene();
-});
-
-window.addEventListener("pointerup", () => activeHandle = -1);
-
-window.addEventListener("resize", () => {
-  if(cropImage && !cropModal.classList.contains("hidden")){
-    resizeCropCanvas();
-    drawCropScene();
-  }
-});
-
-document.getElementById("btnCancelCrop").onclick = closeCropModal;
-
-document.getElementById("btnValidateCrop").onclick = () => {
-  if(!cropImage){
-    toast("Aucune image");
-    return;
-  }
-
-  const minX = Math.min(...cropPoints.map(p => p.x));
-  const maxX = Math.max(...cropPoints.map(p => p.x));
-  const minY = Math.min(...cropPoints.map(p => p.y));
-  const maxY = Math.max(...cropPoints.map(p => p.y));
-
-  const sx = (minX - displayed.x) * (cropImage.width / displayed.w);
-  const sy = (minY - displayed.y) * (cropImage.height / displayed.h);
-  const sw = (maxX - minX) * (cropImage.width / displayed.w);
-  const sh = (maxY - minY) * (cropImage.height / displayed.h);
-
-  if(sw <= 1 || sh <= 1){
-    toast("Recadrage invalide");
-    return;
-  }
-
-  const temp = document.createElement("canvas");
-  temp.width = Math.max(1, Math.round(sw));
-  temp.height = Math.max(1, Math.round(sh));
-  temp.getContext("2d").drawImage(cropImage, sx, sy, sw, sh, 0, 0, temp.width, temp.height);
-
-  photos.push(temp.toDataURL("image/jpeg", 0.92));
-  renderThumbs();
-  closeCropModal();
-  toast("Photo validée");
-};
 
 async function generatePdf(){
   try{
@@ -458,6 +482,86 @@ async function generatePdf(){
   }
 }
 
+document.getElementById("btnGen").onclick = () => setNumero(genNum());
+document.getElementById("btnRegen").onclick = () => setNumero(genNum());
+
+gallery.onchange = async e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  startCrop(await toData(f));
+  e.target.value = "";
+};
+
+camera.onchange = async e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  startCrop(await toData(f));
+  e.target.value = "";
+};
+
+handles.forEach((h, i) => {
+  h.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    activeHandle = i;
+    h.setPointerCapture(e.pointerId);
+  });
+});
+
+cropWrap.addEventListener("pointermove", e => {
+  if(activeHandle === -1) return;
+  const rect = cropWrap.getBoundingClientRect();
+  cropPoints[activeHandle].x = e.clientX - rect.left;
+  cropPoints[activeHandle].y = e.clientY - rect.top;
+  clampPoint(cropPoints[activeHandle]);
+  drawCropScene();
+});
+
+window.addEventListener("pointerup", () => activeHandle = -1);
+
+window.addEventListener("resize", () => {
+  if(cropImage && !cropModal.classList.contains("hidden")){
+    resizeCropCanvas();
+    drawCropScene();
+  }
+});
+
+document.getElementById("btnCancelCrop").onclick = closeCropModal;
+
+document.getElementById("btnValidateCrop").onclick = () => {
+  if(!cropImage){
+    toast("Aucune image");
+    return;
+  }
+
+  const minX = Math.min(...cropPoints.map(p => p.x));
+  const maxX = Math.max(...cropPoints.map(p => p.x));
+  const minY = Math.min(...cropPoints.map(p => p.y));
+  const maxY = Math.max(...cropPoints.map(p => p.y));
+
+  const sx = (minX - displayed.x) * (cropImage.width / displayed.w);
+  const sy = (minY - displayed.y) * (cropImage.height / displayed.h);
+  const sw = (maxX - minX) * (cropImage.width / displayed.w);
+  const sh = (maxY - minY) * (cropImage.height / displayed.h);
+
+  if(sw <= 1 || sh <= 1){
+    toast("Recadrage invalide");
+    return;
+  }
+
+  const temp = document.createElement("canvas");
+  temp.width = Math.max(1, Math.round(sw));
+  temp.height = Math.max(1, Math.round(sh));
+  temp.getContext("2d").drawImage(cropImage, sx, sy, sw, sh, 0, 0, temp.width, temp.height);
+
+  photos.push(temp.toDataURL("image/jpeg", 0.92));
+  renderThumbs();
+  closeCropModal();
+  toast("Photo validée");
+};
+
+document.getElementById("fournisseur").addEventListener("change", autoFillPrestation);
+document.getElementById("fournisseur").addEventListener("blur", autoFillPrestation);
+
 document.getElementById("btnPdf").onclick = generatePdf;
 
 function openMailTo(email){
@@ -496,6 +600,7 @@ document.getElementById("btnReset").onclick = () => {
 
 document.getElementById("date").value = today();
 populateLists();
+populateFournisseurs();
 renderThumbs();
 </script>
 </body>
