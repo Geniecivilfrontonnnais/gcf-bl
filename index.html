@@ -499,7 +499,6 @@ function parseFrenchNumberToFloat(str){
   if(!str) return NaN;
 
   let s = String(str).trim();
-
   s = s.replace(/[€]/g, "").replace(/\u00A0/g, " ").replace(/\s+/g, " ");
 
   if (s.includes(",") && s.includes(".")) {
@@ -545,7 +544,6 @@ function extractTotalHtCandidatesFromText(rawText){
 
   for(const line of lines){
     const nline = normalizeFournisseur(line);
-
     const hasTotal = nline.includes("total");
     const hasHt = nline.includes("ht");
     const hasTtc = nline.includes("ttc");
@@ -610,6 +608,94 @@ function formatPriceForInput(value){
   return value.toFixed(2);
 }
 
+function parseDateParts(day, month, year){
+  let d = parseInt(day, 10);
+  let m = parseInt(month, 10);
+  let y = parseInt(year, 10);
+
+  if(year.length === 2){
+    y = y >= 70 ? 1900 + y : 2000 + y;
+  }
+
+  if(!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(y)) return null;
+  if(y < 2020 || y > 2035) return null;
+  if(m < 1 || m > 12) return null;
+  if(d < 1 || d > 31) return null;
+
+  const test = new Date(y, m - 1, d);
+  if(
+    test.getFullYear() !== y ||
+    test.getMonth() !== m - 1 ||
+    test.getDate() !== d
+  ){
+    return null;
+  }
+
+  const iso = `${String(y).padStart(4,"0")}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  return { d, m, y, iso };
+}
+
+function addDateCandidate(list, iso, score){
+  const existing = list.find(x => x.iso === iso);
+  if(existing){
+    existing.score = Math.max(existing.score, score);
+    existing.count += 1;
+  } else {
+    list.push({ iso, score, count: 1 });
+  }
+}
+
+function extractDateCandidatesFromText(rawText){
+  const candidates = [];
+  if(!rawText) return candidates;
+
+  const text = rawText.replace(/\r/g, "\n");
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+
+  const keywordScore = (line) => {
+    const n = normalizeFournisseur(line);
+    let score = 1;
+    if(n.includes("date")) score += 5;
+    if(n.includes("bon")) score += 2;
+    if(n.includes("livraison")) score += 3;
+    if(n.includes("bl")) score += 2;
+    if(n.includes("edition")) score += 1;
+    if(n.includes("émis")) score += 1;
+    if(n.includes("emis")) score += 1;
+    if(n.includes("facture")) score -= 1;
+    return score;
+  };
+
+  for(const line of lines){
+    const score = keywordScore(line);
+
+    let match;
+    const regexFr = /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/g;
+    while((match = regexFr.exec(line)) !== null){
+      const parsed = parseDateParts(match[1], match[2], match[3]);
+      if(parsed) addDateCandidate(candidates, parsed.iso, score);
+    }
+
+    const regexIso = /\b(20\d{2})[\/\-.](\d{1,2})[\/\-.](\d{1,2})\b/g;
+    while((match = regexIso.exec(line)) !== null){
+      const parsed = parseDateParts(match[3], match[2], match[1]);
+      if(parsed) addDateCandidate(candidates, parsed.iso, score);
+    }
+  }
+
+  return candidates;
+}
+
+function chooseBestDetectedDate(allDateCandidates){
+  if(!allDateCandidates.length) return "";
+  allDateCandidates.sort((a, b) => {
+    if(b.score !== a.score) return b.score - a.score;
+    if(b.count !== a.count) return b.count - a.count;
+    return b.iso.localeCompare(a.iso);
+  });
+  return allDateCandidates[0].iso;
+}
+
 async function detectDataFromAllPhotos(){
   if(!photos.length || ocrRunning) return;
 
@@ -618,6 +704,7 @@ async function detectDataFromAllPhotos(){
   try{
     let fournisseurTrouve = "";
     const allBuckets = { net: [], general: [], brut: [] };
+    const allDateCandidates = [];
 
     for(let i = 0; i < photos.length; i++){
       const pageNumber = i + 1;
@@ -648,6 +735,9 @@ async function detectDataFromAllPhotos(){
       allBuckets.net.push(...pageBuckets.net);
       allBuckets.general.push(...pageBuckets.general);
       allBuckets.brut.push(...pageBuckets.brut);
+
+      const pageDates = extractDateCandidatesFromText(text);
+      allDateCandidates.push(...pageDates);
     }
 
     if(fournisseurTrouve){
@@ -661,18 +751,22 @@ async function detectDataFromAllPhotos(){
       document.getElementById("prix").value = formatPriceForInput(bestPrice);
     }
 
+    const bestDate = chooseBestDetectedDate(allDateCandidates);
+    if(bestDate){
+      document.getElementById("date").value = bestDate;
+    }
+
     const fournisseurValue = document.getElementById("fournisseur").value;
     const prixValue = document.getElementById("prix").value;
+    const dateValue = document.getElementById("date").value;
 
-    if(fournisseurValue && prixValue){
-      setOcrStatus("Fournisseur détecté : " + fournisseurValue + " | Prix HT détecté : " + prixValue + " €");
-      toast("Fournisseur et prix détectés");
-    } else if(fournisseurValue){
-      setOcrStatus("Fournisseur détecté : " + fournisseurValue);
-      toast("Fournisseur détecté");
-    } else if(prixValue){
-      setOcrStatus("Prix HT détecté : " + prixValue + " €");
-      toast("Prix détecté");
+    if(fournisseurValue || prixValue || dateValue){
+      const parts = [];
+      if(fournisseurValue) parts.push("Fournisseur détecté : " + fournisseurValue);
+      if(dateValue) parts.push("Date détectée : " + dateValue);
+      if(prixValue) parts.push("Prix HT détecté : " + prixValue + " €");
+      setOcrStatus(parts.join(" | "));
+      toast("Données détectées");
     } else {
       setOcrStatus("Aucune donnée reconnue automatiquement");
     }
