@@ -498,65 +498,111 @@ function findFournisseurFromText(rawText){
 function parseFrenchNumberToFloat(str){
   if(!str) return NaN;
 
-  let s = String(str)
-    .replace(/\s/g, "")
-    .replace(/[€]/g, "")
-    .replace(/,/g, ".");
+  let s = String(str).trim();
+
+  s = s.replace(/[€]/g, "").replace(/\u00A0/g, " ").replace(/\s+/g, " ");
+
+  if (s.includes(",") && s.includes(".")) {
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else {
+      s = s.replace(/,/g, "");
+    }
+  } else if (s.includes(",")) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else {
+    const dotCount = (s.match(/\./g) || []).length;
+    if (dotCount > 1) {
+      const parts = s.split(".");
+      const dec = parts.pop();
+      s = parts.join("") + "." + dec;
+    }
+  }
 
   s = s.replace(/[^0-9.]/g, "");
-
-  const parts = s.split(".");
-  if(parts.length > 2){
-    const dec = parts.pop();
-    s = parts.join("") + "." + dec;
-  }
 
   const val = parseFloat(s);
   return Number.isFinite(val) ? val : NaN;
 }
 
-function extractHtCandidatesFromText(rawText){
-  if(!rawText) return [];
+function isReasonablePrice(val){
+  return Number.isFinite(val) && val > 0 && val < 100000;
+}
+
+function pushPriceCandidate(bucket, rawValue){
+  const val = parseFrenchNumberToFloat(rawValue);
+  if(isReasonablePrice(val)){
+    bucket.push(val);
+  }
+}
+
+function extractTotalHtCandidatesFromText(rawText){
+  const buckets = { net: [], general: [], brut: [] };
+  if(!rawText) return buckets;
 
   const text = rawText.replace(/\r/g, "\n").replace(/[ \t]+/g, " ");
-  const candidates = [];
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
-  const lines = text.split("\n");
   for(const line of lines){
     const nline = normalizeFournisseur(line);
-    if(!nline.includes("ht")) continue;
-    if(nline.includes("ttc")) continue;
+
+    const hasTotal = nline.includes("total");
+    const hasHt = nline.includes("ht");
+    const hasTtc = nline.includes("ttc");
+
+    if(!(hasTotal && hasHt)) continue;
+    if(hasTtc) continue;
 
     const matches = line.match(/\d[\d\s.,]*\d|\d/g);
     if(!matches) continue;
 
+    const isNet = nline.includes("net");
+    const isBrut = nline.includes("brut");
+
     for(const m of matches){
-      const val = parseFrenchNumberToFloat(m);
-      if(Number.isFinite(val) && val > 0){
-        candidates.push(val);
+      if(isNet){
+        pushPriceCandidate(buckets.net, m);
+      } else if(isBrut){
+        pushPriceCandidate(buckets.brut, m);
+      } else {
+        pushPriceCandidate(buckets.general, m);
       }
     }
   }
 
-  const targetedPatterns = [
-    /total\s*ht(?:\s*net|\s*brut)?[^0-9]{0,20}([0-9][0-9\s.,]*)/gi,
-    /montant\s*ht[^0-9]{0,20}([0-9][0-9\s.,]*)/gi,
-    /net\s*ht[^0-9]{0,20}([0-9][0-9\s.,]*)/gi,
-    /ht[^0-9]{0,20}([0-9][0-9\s.,]*)/gi,
-    /([0-9][0-9\s.,]*)[^a-zA-Z0-9]{0,10}€?\s*ht/gi
+  const patterns = [
+    { type: "net", regex: /total\s*ht\s*net[^0-9]{0,25}([0-9][0-9\s.,]*)/gi },
+    { type: "net", regex: /ht\s*total\s*net[^0-9]{0,25}([0-9][0-9\s.,]*)/gi },
+    { type: "net", regex: /total\s*net\s*ht[^0-9]{0,25}([0-9][0-9\s.,]*)/gi },
+
+    { type: "general", regex: /total\s*ht[^a-z0-9]{0,25}([0-9][0-9\s.,]*)/gi },
+    { type: "general", regex: /ht\s*total[^a-z0-9]{0,25}([0-9][0-9\s.,]*)/gi },
+
+    { type: "brut", regex: /total\s*ht\s*brut[^0-9]{0,25}([0-9][0-9\s.,]*)/gi },
+    { type: "brut", regex: /ht\s*total\s*brut[^0-9]{0,25}([0-9][0-9\s.,]*)/gi }
   ];
 
-  for(const pattern of targetedPatterns){
+  for(const {type, regex} of patterns){
     let match;
-    while((match = pattern.exec(text)) !== null){
-      const val = parseFrenchNumberToFloat(match[1]);
-      if(Number.isFinite(val) && val > 0){
-        candidates.push(val);
-      }
+    while((match = regex.exec(text)) !== null){
+      pushPriceCandidate(buckets[type], match[1]);
     }
   }
 
-  return candidates;
+  return buckets;
+}
+
+function chooseBestDetectedPrice(allBuckets){
+  if(allBuckets.net.length){
+    return Math.max(...allBuckets.net);
+  }
+  if(allBuckets.general.length){
+    return Math.max(...allBuckets.general);
+  }
+  if(allBuckets.brut.length){
+    return Math.max(...allBuckets.brut);
+  }
+  return NaN;
 }
 
 function formatPriceForInput(value){
@@ -571,7 +617,7 @@ async function detectDataFromAllPhotos(){
 
   try{
     let fournisseurTrouve = "";
-    let allCandidates = [];
+    const allBuckets = { net: [], general: [], brut: [] };
 
     for(let i = 0; i < photos.length; i++){
       const pageNumber = i + 1;
@@ -598,10 +644,10 @@ async function detectDataFromAllPhotos(){
         }
       }
 
-      const pageCandidates = extractHtCandidatesFromText(text);
-      if(pageCandidates.length){
-        allCandidates = allCandidates.concat(pageCandidates);
-      }
+      const pageBuckets = extractTotalHtCandidatesFromText(text);
+      allBuckets.net.push(...pageBuckets.net);
+      allBuckets.general.push(...pageBuckets.general);
+      allBuckets.brut.push(...pageBuckets.brut);
     }
 
     if(fournisseurTrouve){
@@ -610,9 +656,9 @@ async function detectDataFromAllPhotos(){
       autoFillPrestation();
     }
 
-    if(allCandidates.length){
-      const maxHt = Math.max(...allCandidates);
-      document.getElementById("prix").value = formatPriceForInput(maxHt);
+    const bestPrice = chooseBestDetectedPrice(allBuckets);
+    if(Number.isFinite(bestPrice)){
+      document.getElementById("prix").value = formatPriceForInput(bestPrice);
     }
 
     const fournisseurValue = document.getElementById("fournisseur").value;
