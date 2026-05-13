@@ -11,7 +11,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,sans-serif}
-.top{position:sticky;top:0;background:var(--green);color:#fff;padding:14px 16px}
+.top{position:sticky;top:0;background:var(--green);color:#fff;padding:14px 16px;z-index:10}
 .wrap{max-width:900px;margin:0 auto;padding:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
 label{display:block;margin:0 0 6px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase}
@@ -29,23 +29,24 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 .step{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .badge{width:28px;height:28px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
 .hidden{display:none!important}
-.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--green);color:#fff;padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;z-index:30;box-shadow:0 8px 20px rgba(0,0,0,.18)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--green);color:#fff;padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;z-index:80;box-shadow:0 8px 20px rgba(0,0,0,.18);text-align:center}
 .suggestions{position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid var(--line);border-radius:10px;margin-top:4px;max-height:220px;overflow-y:auto;z-index:40;box-shadow:0 8px 20px rgba(0,0,0,.12)}
 .suggestion-item{padding:10px 12px;cursor:pointer;font-size:15px;border-bottom:1px solid #f0ece6}
 .suggestion-item:last-child{border-bottom:none}
 .suggestion-item:hover{background:#F5F2ED}
 
-/* Recadrage */
+/* Recadrage / scanner */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;display:flex;flex-direction:column}
-.modal-header{padding:12px;display:flex;gap:8px;background:#111}
-.modal-header button{margin-top:0}
+.modal-header{padding:12px;display:flex;gap:8px;background:#111;flex-wrap:wrap}
+.modal-header button{margin-top:0;flex:1 1 160px}
 .crop-wrap{position:relative;flex:1;overflow:hidden;touch-action:none;background:#000}
 .crop-canvas{display:block;width:100%;height:100%;touch-action:none}
 .handle{
-  position:absolute;width:28px;height:28px;border-radius:50%;
+  position:absolute;width:30px;height:30px;border-radius:50%;
   background:#ff3b30;border:3px solid #fff;transform:translate(-50%,-50%);
   touch-action:none;box-shadow:0 2px 8px rgba(0,0,0,.5)
 }
+.scan-info{width:100%;color:#fff;font-size:13px;padding:0 4px;opacity:.85}
 </style>
 </head>
 <body>
@@ -118,7 +119,9 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 <div id="cropModal" class="modal hidden">
   <div class="modal-header">
     <button id="btnCancelCrop" class="btn-secondary">Annuler</button>
-    <button id="btnValidateCrop" class="btn-primary">Valider la photo</button>
+    <button id="btnAutoDetect" class="btn-secondary">Détecter le cadre</button>
+    <button id="btnValidateCrop" class="btn-primary">Valider le scan</button>
+    <div id="scanInfo" class="scan-info">Place les 4 points sur les coins du BL, puis valide.</div>
   </div>
   <div class="crop-wrap" id="cropWrap">
     <canvas id="cropCanvas" class="crop-canvas"></canvas>
@@ -131,12 +134,23 @@ button{width:100%;padding:14px;border:none;border-radius:12px;font-weight:700;fo
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvScriptLoaded()"></script>
 
 <script>
 let numero = null;
 let photos = [];
 let lastPdf = "";
 let ocrRunning = false;
+let cvReady = false;
+
+function onOpenCvScriptLoaded(){
+  if (window.cv) {
+    cv.onRuntimeInitialized = () => {
+      cvReady = true;
+      console.log("OpenCV prêt");
+    };
+  }
+}
 
 const thumbRow = document.getElementById("thumbRow");
 const gallery = document.getElementById("galleryInput");
@@ -160,195 +174,11 @@ const FOURNISSEURS = [
 ];
 
 const PRESTATION_BY_FOURNISSEUR = {
-  "a2b": "Locatier",
-  "ab mat": "Location",
-  "abcvl": "Béton",
-  "abmat": "Location",
-  "actis location": "Location",
-  "adltp": "Locatier",
-  "agoarena": "Granulats",
-  "alcam": "Matériaux divers",
-  "aldr": "Locatier",
-  "alphapipe": "Matériaux divers",
-  "altrad": "Location",
-  "alvea": "Matériaux divers",
-  "alves freres": "Matériaux divers",
-  "apiradour": "Locatier",
-  "aprochim": "Locatier",
-  "aquitaine beton": "Béton",
-  "arnaud location": "Location",
-  "ase exploitation": "Matériaux divers",
-  "aspiradour": "Locatier",
-  "autaa": "Locatier",
-  "autodistribution": "Matériaux divers",
-  "baptistan": "Matériaux divers",
-  "baquey": "Location",
-  "barthas": "Locatier",
-  "batiland": "Matériaux divers",
-  "beton controle du comminges": "Béton",
-  "beton montois": "Béton",
-  "beziat carburants": "Matériaux divers",
-  "bigmat": "Matériaux divers",
-  "bls": "Matériaux divers",
-  "bmi stradal": "Matériaux divers",
-  "bordas vidange": "Locatier",
-  "brenntag": "Matériaux divers",
-  "bricomarche": "Matériaux divers",
-  "buesa": "Locatier",
-  "buesa tp": "Locatier",
-  "c.c.r": "Location",
-  "ccl": "Matériaux divers",
-  "cemex": "Granulats",
-  "chausson": "Matériaux divers",
-  "chausson pro": "Matériaux divers",
-  "chimirec": "Locatier",
-  "ciffreo bona": "Matériaux divers",
-  "cifreo bona": "Matériaux divers",
-  "coaxis": "Location",
-  "cofrasud": "Matériaux divers",
-  "compans carburant": "Matériaux divers",
-  "controle technique des engins": "Locatier",
-  "courcelle": "Locatier",
-  "daniel": "Béton",
-  "david gaulard": "Location",
-  "delample vrd": "Locatier",
-  "delile tp": "Matériaux divers",
-  "delmonico": "Béton",
-  "delzongle": "Matériaux divers",
-  "denjean": "Granulats",
-  "ditp": "Matériaux divers",
-  "distri club medical": "Matériaux divers",
-  "doumen": "Locatier",
-  "edycem bpe": "Béton",
-  "eiffage route": "Locatier",
-  "erigec": "Matériaux divers",
-  "euromaster": "Matériaux divers",
-  "fargeot": "Location",
-  "foselev": "Locatier",
-  "francois industrie": "Béton",
-  "frans bonhomme": "Matériaux divers",
-  "garrouste": "Béton",
-  "gascogne environnement": "Locatier",
-  "gedimat": "Matériaux divers",
-  "gt solutions": "Locatier",
-  "hbcm ramonage": "Locatier",
-  "hecq": "Matériaux divers",
-  "hirsch": "Matériaux divers",
-  "iem": "Matériaux divers",
-  "iveco": "Location",
-  "jcb atl 47": "Locatier",
-  "joucla": "Granulats",
-  "jourdain": "Matériaux divers",
-  "kiloutou": "Location",
-  "lagune": "Matériaux divers",
-  "lafarge": "Béton",
-  "lapeyronie": "Locatier",
-  "lecussan": "Locatier",
-  "le petit forestier": "Location",
-  "les gravieres garonnaises": "Granulats",
-  "lm beton": "Béton",
-  "loca64": "Location",
-  "locamax": "Location",
-  "loxam": "Location",
-  "m+ materiaux": "Matériaux divers",
-  "m3m": "Matériaux divers",
-  "m3m appia": "Matériaux divers",
-  "maire tp": "Locatier",
-  "martin": "Béton",
-  "mat'equip 31": "Location",
-  "mecasoudure": "Matériaux divers",
-  "mediaco": "Locatier",
-  "mendez": "Matériaux divers",
-  "mercadier": "Matériaux divers",
-  "mps": "Matériaux divers",
-  "nasal": "Matériaux divers",
-  "nexstone": "Matériaux divers",
-  "nicolas pere et fils": "Granulats",
-  "or equipement": "Locatier",
-  "paprec": "Locatier",
-  "pbm": "Béton",
-  "pene": "Locatier",
-  "pena": "Locatier",
-  "pene tp": "Locatier",
-  "peyrani": "Granulats",
-  "plaisance": "Location",
-  "point p": "Matériaux divers",
-  "pointp": "Matériaux divers",
-  "prolians": "Matériaux divers",
-  "pum": "Matériaux divers",
-  "pum plastique": "Matériaux divers",
-  "r.b": "Matériaux divers",
-  "r-b": "Matériaux divers",
-  "retis solutions": "Matériaux divers",
-  "rexel": "Matériaux divers",
-  "ricard": "Locatier",
-  "rte": "Matériaux divers",
-  "sabea": "Matériaux divers",
-  "sablieres malet": "Granulats",
-  "sabtp": "Matériaux divers",
-  "sarc": "Locatier",
-  "sarremejean": "Matériaux divers",
-  "sas bousquet": "Granulats",
-  "sbct": "Béton",
-  "smda": "Matériaux divers",
-  "snb": "Locatier",
-  "sogea": "Locatier",
-  "somepose": "Locatier",
-  "suez": "Locatier",
-  "t2b": "Locatier",
-  "t2b zinguerie": "Matériaux divers",
-  "t2c": "Locatier",
-  "tarn bennes services": "Locatier",
-  "tcs": "Location",
-  "tellus": "Location",
-  "thirion": "Matériaux divers",
-  "thuries": "Locatier",
-  "total energies": "Matériaux divers",
-  "toujas": "Béton",
-  "tout faire materiaux": "Matériaux divers",
-  "unibeton": "Béton",
-  "urbaloc": "Locatier",
-  "v2v flexiloc": "Location",
-  "veolia": "Locatier",
-  "vicat": "Béton",
-  "weldom": "Matériaux divers"
+  "a2b": "Locatier", "ab mat": "Location", "abcvl": "Béton", "abmat": "Location", "actis location": "Location", "adltp": "Locatier", "agoarena": "Granulats", "alcam": "Matériaux divers", "aldr": "Locatier", "alphapipe": "Matériaux divers", "altrad": "Location", "alvea": "Matériaux divers", "alves freres": "Matériaux divers", "apiradour": "Locatier", "aprochim": "Locatier", "aquitaine beton": "Béton", "arnaud location": "Location", "ase exploitation": "Matériaux divers", "aspiradour": "Locatier", "autaa": "Locatier", "autodistribution": "Matériaux divers", "baptistan": "Matériaux divers", "baquey": "Location", "barthas": "Locatier", "batiland": "Matériaux divers", "beton controle du comminges": "Béton", "beton montois": "Béton", "beziat carburants": "Matériaux divers", "bigmat": "Matériaux divers", "bls": "Matériaux divers", "bmi stradal": "Matériaux divers", "bordas vidange": "Locatier", "brenntag": "Matériaux divers", "bricomarche": "Matériaux divers", "buesa": "Locatier", "buesa tp": "Locatier", "c.c.r": "Location", "ccl": "Matériaux divers", "cemex": "Granulats", "chausson": "Matériaux divers", "chausson pro": "Matériaux divers", "chimirec": "Locatier", "ciffreo bona": "Matériaux divers", "cifreo bona": "Matériaux divers", "coaxis": "Location", "cofrasud": "Matériaux divers", "compans carburant": "Matériaux divers", "controle technique des engins": "Locatier", "courcelle": "Locatier", "daniel": "Béton", "david gaulard": "Location", "delample vrd": "Locatier", "delile tp": "Matériaux divers", "delmonico": "Béton", "delzongle": "Matériaux divers", "denjean": "Granulats", "ditp": "Matériaux divers", "distri club medical": "Matériaux divers", "doumen": "Locatier", "edycem bpe": "Béton", "eiffage route": "Locatier", "erigec": "Matériaux divers", "euromaster": "Matériaux divers", "fargeot": "Location", "foselev": "Locatier", "francois industrie": "Béton", "frans bonhomme": "Matériaux divers", "garrouste": "Béton", "gascogne environnement": "Locatier", "gedimat": "Matériaux divers", "gt solutions": "Locatier", "hbcm ramonage": "Locatier", "hecq": "Matériaux divers", "hirsch": "Matériaux divers", "iem": "Matériaux divers", "iveco": "Location", "jcb atl 47": "Locatier", "joucla": "Granulats", "jourdain": "Matériaux divers", "kiloutou": "Location", "lagune": "Matériaux divers", "lafarge": "Béton", "lapeyronie": "Locatier", "lecussan": "Locatier", "le petit forestier": "Location", "les gravieres garonnaises": "Granulats", "lm beton": "Béton", "loca64": "Location", "locamax": "Location", "loxam": "Location", "m+ materiaux": "Matériaux divers", "m3m": "Matériaux divers", "m3m appia": "Matériaux divers", "maire tp": "Locatier", "martin": "Béton", "mat'equip 31": "Location", "mecasoudure": "Matériaux divers", "mediaco": "Locatier", "mendez": "Matériaux divers", "mercadier": "Matériaux divers", "mps": "Matériaux divers", "nasal": "Matériaux divers", "nexstone": "Matériaux divers", "nicolas pere et fils": "Granulats", "or equipement": "Locatier", "paprec": "Locatier", "pbm": "Béton", "pene": "Locatier", "pena": "Locatier", "pene tp": "Locatier", "peyrani": "Granulats", "plaisance": "Location", "point p": "Matériaux divers", "pointp": "Matériaux divers", "prolians": "Matériaux divers", "pum": "Matériaux divers", "pum plastique": "Matériaux divers", "r.b": "Matériaux divers", "r-b": "Matériaux divers", "retis solutions": "Matériaux divers", "rexel": "Matériaux divers", "ricard": "Locatier", "rte": "Matériaux divers", "sabea": "Matériaux divers", "sablieres malet": "Granulats", "sabtp": "Matériaux divers", "sarc": "Locatier", "sarremejean": "Matériaux divers", "sas bousquet": "Granulats", "sbct": "Béton", "smda": "Matériaux divers", "snb": "Locatier", "sogea": "Locatier", "somepose": "Locatier", "suez": "Locatier", "t2b": "Locatier", "t2b zinguerie": "Matériaux divers", "t2c": "Locatier", "tarn bennes services": "Locatier", "tcs": "Location", "tellus": "Location", "thirion": "Matériaux divers", "thuries": "Locatier", "total energies": "Matériaux divers", "toujas": "Béton", "tout faire materiaux": "Matériaux divers", "unibeton": "Béton", "urbaloc": "Locatier", "v2v flexiloc": "Location", "veolia": "Locatier", "vicat": "Béton", "weldom": "Matériaux divers"
 };
 
 const FOURNISSEUR_ALIASES = {
-  "point p": "Point P",
-  "pointp": "Pointp",
-  "point.p": "Point P",
-  "chausson materiaux": "chausson",
-  "chausson matériaux": "chausson",
-  "cemex": "Cemex",
-  "kiloutou": "Kiloutou",
-  "loxam": "Loxam",
-  "altrad": "Altrad",
-  "aldr": "Aldr",
-  "ccl": "CCL",
-  "urbaloc": "Urbaloc",
-  "bls": "BLS",
-  "nexstone": "Nexstone",
-  "sarremejean": "Sarremejean",
-  "pum": "Pum",
-  "pum plastique": "Pum plastique",
-  "pum plastiques": "Pum plastique",
-  "lafarge": "Lafarge",
-  "unibeton": "Unibéton",
-  "unibéton": "Unibéton",
-  "vicat": "Vicat",
-  "denjean": "Denjean",
-  "garrouste": "Garrouste",
-  "frans bonhomme": "Frans bonhomme",
-  "francois industrie": "François industrie",
-  "françois industrie": "François industrie",
-  "rexel": "Rexel",
-  "prolians": "Prolians",
-  "thuries": "Thuries",
-  "delmonico": "Delmonico",
-  "sabtp": "SABTP",
-  "sabea": "Sabea",
-  "cofrasud": "Cofrasud"
+  "point p": "Point P", "pointp": "Pointp", "point.p": "Point P", "chausson materiaux": "chausson", "chausson matériaux": "chausson", "cemex": "Cemex", "kiloutou": "Kiloutou", "loxam": "Loxam", "altrad": "Altrad", "aldr": "Aldr", "ccl": "CCL", "urbaloc": "Urbaloc", "bls": "BLS", "nexstone": "Nexstone", "sarremejean": "Sarremejean", "pum": "Pum", "pum plastique": "Pum plastique", "pum plastiques": "Pum plastique", "lafarge": "Lafarge", "unibeton": "Unibéton", "unibéton": "Unibéton", "vicat": "Vicat", "denjean": "Denjean", "garrouste": "Garrouste", "frans bonhomme": "Frans bonhomme", "francois industrie": "François industrie", "françois industrie": "François industrie", "rexel": "Rexel", "prolians": "Prolians", "thuries": "Thuries", "delmonico": "Delmonico", "sabtp": "SABTP", "sabea": "Sabea", "cofrasud": "Cofrasud"
 };
 
 let cropImage = null;
@@ -364,29 +194,23 @@ function toast(msg){
   setTimeout(() => t.remove(), 2200);
 }
 
+function setScanInfo(msg){
+  document.getElementById("scanInfo").textContent = msg;
+}
+
 function setOcrStatus(text){
   const box = document.getElementById("ocrStatus");
-  if(!text){
-    box.textContent = "";
-    box.classList.add("hidden");
-    return;
-  }
+  if(!text){ box.textContent = ""; box.classList.add("hidden"); return; }
   box.textContent = text;
   box.classList.remove("hidden");
 }
 
-function today(){
-  return new Date().toISOString().slice(0,10);
-}
+function today(){ return new Date().toISOString().slice(0,10); }
 
 function genNum(){
   const d = new Date();
   const p = v => String(v).padStart(2, "0");
-  return String(d.getFullYear()).slice(2)
-    + p(d.getMonth()+1)
-    + p(d.getDate())
-    + p(d.getHours())
-    + p(d.getMinutes());
+  return String(d.getFullYear()).slice(2) + p(d.getMonth()+1) + p(d.getDate()) + p(d.getHours()) + p(d.getMinutes());
 }
 
 function setNumero(n){
@@ -397,12 +221,7 @@ function setNumero(n){
 }
 
 function normalizeFournisseur(value){
-  return (value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 }
 
 function populateLists(){
@@ -416,31 +235,18 @@ function autoFillPrestation(){
   const fournisseur = document.getElementById("fournisseur").value;
   const prestation = document.getElementById("prestation");
   const key = normalizeFournisseur(fournisseur);
-
-  if (Object.prototype.hasOwnProperty.call(PRESTATION_BY_FOURNISSEUR, key)) {
-    prestation.value = PRESTATION_BY_FOURNISSEUR[key];
-  } else {
-    prestation.value = "";
-  }
+  prestation.value = Object.prototype.hasOwnProperty.call(PRESTATION_BY_FOURNISSEUR, key) ? PRESTATION_BY_FOURNISSEUR[key] : "";
 }
 
 function getFilteredFournisseurs(search){
   const s = normalizeFournisseur(search);
-  const starts = [];
-  const contains = [];
-
+  const starts = [], contains = [];
   for (const f of FOURNISSEURS) {
     const n = normalizeFournisseur(f);
-
-    if (!s) {
-      starts.push(f);
-    } else if (n.startsWith(s)) {
-      starts.push(f);
-    } else if (n.includes(s)) {
-      contains.push(f);
-    }
+    if (!s) starts.push(f);
+    else if (n.startsWith(s)) starts.push(f);
+    else if (n.includes(s)) contains.push(f);
   }
-
   return starts.concat(contains).slice(0, 12);
 }
 
@@ -448,16 +254,9 @@ function renderFournisseurSuggestions(){
   const input = document.getElementById("fournisseur");
   const box = document.getElementById("fournisseurSuggestions");
   const results = getFilteredFournisseurs(input.value);
-
-  if(results.length === 0){
-    box.innerHTML = "";
-    box.classList.add("hidden");
-    return;
-  }
-
+  if(results.length === 0){ box.innerHTML = ""; box.classList.add("hidden"); return; }
   box.innerHTML = results.map(f => `<div class="suggestion-item" data-value="${f.replace(/"/g, '&quot;')}">${f}</div>`).join("");
   box.classList.remove("hidden");
-
   box.querySelectorAll(".suggestion-item").forEach(item => {
     item.addEventListener("mousedown", e => {
       e.preventDefault();
@@ -469,189 +268,102 @@ function renderFournisseurSuggestions(){
 }
 
 function hideFournisseurSuggestions(){
-  setTimeout(() => {
-    document.getElementById("fournisseurSuggestions").classList.add("hidden");
-  }, 150);
+  setTimeout(() => document.getElementById("fournisseurSuggestions").classList.add("hidden"), 150);
 }
 
 function findFournisseurFromText(rawText){
   const text = normalizeFournisseur(rawText);
   if(!text) return "";
-
   for(const alias in FOURNISSEUR_ALIASES){
-    if(text.includes(normalizeFournisseur(alias))){
-      return FOURNISSEUR_ALIASES[alias];
-    }
+    if(text.includes(normalizeFournisseur(alias))) return FOURNISSEUR_ALIASES[alias];
   }
-
   const sorted = [...FOURNISSEURS].sort((a, b) => b.length - a.length);
   for(const fournisseur of sorted){
     const f = normalizeFournisseur(fournisseur);
-    if(f && text.includes(f)){
-      return fournisseur;
-    }
+    if(f && text.includes(f)) return fournisseur;
   }
-
   return "";
 }
 
 function parseFrenchNumberToFloat(str){
   if(!str) return NaN;
-
-  let s = String(str).trim();
-  s = s.replace(/[€]/g, "").replace(/\u00A0/g, " ").replace(/\s+/g, " ");
-
+  let s = String(str).trim().replace(/[€]/g, "").replace(/\u00A0/g, " ").replace(/\s+/g, " ");
   if (s.includes(",") && s.includes(".")) {
-    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
-      s = s.replace(/\./g, "").replace(",", ".");
-    } else {
-      s = s.replace(/,/g, "");
-    }
-  } else if (s.includes(",")) {
-    s = s.replace(/\./g, "").replace(",", ".");
-  } else {
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g, "").replace(",", ".");
+    else s = s.replace(/,/g, "");
+  } else if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  else {
     const dotCount = (s.match(/\./g) || []).length;
-    if (dotCount > 1) {
-      const parts = s.split(".");
-      const dec = parts.pop();
-      s = parts.join("") + "." + dec;
-    }
+    if (dotCount > 1) { const parts = s.split("."); const dec = parts.pop(); s = parts.join("") + "." + dec; }
   }
-
   s = s.replace(/[^0-9.]/g, "");
-
   const val = parseFloat(s);
   return Number.isFinite(val) ? val : NaN;
 }
 
-function isReasonablePrice(val){
-  return Number.isFinite(val) && val > 0 && val < 100000;
-}
-
-function pushPriceCandidate(bucket, rawValue){
-  const val = parseFrenchNumberToFloat(rawValue);
-  if(isReasonablePrice(val)){
-    bucket.push(val);
-  }
-}
+function isReasonablePrice(val){ return Number.isFinite(val) && val > 0 && val < 100000; }
+function pushPriceCandidate(bucket, rawValue){ const val = parseFrenchNumberToFloat(rawValue); if(isReasonablePrice(val)) bucket.push(val); }
 
 function extractTotalHtCandidatesFromText(rawText){
   const buckets = { net: [], general: [], brut: [] };
   if(!rawText) return buckets;
-
   const text = rawText.replace(/\r/g, "\n").replace(/[ \t]+/g, " ");
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-
   for(const line of lines){
     const nline = normalizeFournisseur(line);
-    const hasTotal = nline.includes("total");
-    const hasHt = nline.includes("ht");
-    const hasTtc = nline.includes("ttc");
-
-    if(!(hasTotal && hasHt)) continue;
-    if(hasTtc) continue;
-
+    if(!(nline.includes("total") && nline.includes("ht"))) continue;
+    if(nline.includes("ttc")) continue;
     const matches = line.match(/\d[\d\s.,]*\d|\d/g);
     if(!matches) continue;
-
-    const isNet = nline.includes("net");
-    const isBrut = nline.includes("brut");
-
+    const isNet = nline.includes("net"), isBrut = nline.includes("brut");
     for(const m of matches){
-      if(isNet){
-        pushPriceCandidate(buckets.net, m);
-      } else if(isBrut){
-        pushPriceCandidate(buckets.brut, m);
-      } else {
-        pushPriceCandidate(buckets.general, m);
-      }
+      if(isNet) pushPriceCandidate(buckets.net, m);
+      else if(isBrut) pushPriceCandidate(buckets.brut, m);
+      else pushPriceCandidate(buckets.general, m);
     }
   }
-
   const patterns = [
     { type: "net", regex: /total\s*ht\s*net[^0-9]{0,25}([0-9][0-9\s.,]*)/gi },
     { type: "net", regex: /ht\s*total\s*net[^0-9]{0,25}([0-9][0-9\s.,]*)/gi },
     { type: "net", regex: /total\s*net\s*ht[^0-9]{0,25}([0-9][0-9\s.,]*)/gi },
-
     { type: "general", regex: /total\s*ht[^a-z0-9]{0,25}([0-9][0-9\s.,]*)/gi },
     { type: "general", regex: /ht\s*total[^a-z0-9]{0,25}([0-9][0-9\s.,]*)/gi },
-
     { type: "brut", regex: /total\s*ht\s*brut[^0-9]{0,25}([0-9][0-9\s.,]*)/gi },
     { type: "brut", regex: /ht\s*total\s*brut[^0-9]{0,25}([0-9][0-9\s.,]*)/gi }
   ];
-
   for(const {type, regex} of patterns){
     let match;
-    while((match = regex.exec(text)) !== null){
-      pushPriceCandidate(buckets[type], match[1]);
-    }
+    while((match = regex.exec(text)) !== null) pushPriceCandidate(buckets[type], match[1]);
   }
-
   return buckets;
 }
 
 function chooseBestDetectedPrice(allBuckets){
-  if(allBuckets.net.length){
-    return Math.max(...allBuckets.net);
-  }
-  if(allBuckets.general.length){
-    return Math.max(...allBuckets.general);
-  }
-  if(allBuckets.brut.length){
-    return Math.max(...allBuckets.brut);
-  }
+  if(allBuckets.net.length) return Math.max(...allBuckets.net);
+  if(allBuckets.general.length) return Math.max(...allBuckets.general);
+  if(allBuckets.brut.length) return Math.max(...allBuckets.brut);
   return NaN;
 }
-
-function formatPriceForInput(value){
-  if(!Number.isFinite(value)) return "";
-  return value.toFixed(2);
-}
+function formatPriceForInput(value){ return Number.isFinite(value) ? value.toFixed(2) : ""; }
 
 function parseDateParts(day, month, year){
-  let d = parseInt(day, 10);
-  let m = parseInt(month, 10);
-  let y = parseInt(year, 10);
-
-  if(year.length === 2){
-    y = y >= 70 ? 1900 + y : 2000 + y;
-  }
-
+  let d = parseInt(day, 10), m = parseInt(month, 10), y = parseInt(year, 10);
+  if(year.length === 2) y = y >= 70 ? 1900 + y : 2000 + y;
   if(!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(y)) return null;
-  if(y < 2020 || y > 2035) return null;
-  if(m < 1 || m > 12) return null;
-  if(d < 1 || d > 31) return null;
-
+  if(y < 2020 || y > 2035 || m < 1 || m > 12 || d < 1 || d > 31) return null;
   const test = new Date(y, m - 1, d);
-  if(
-    test.getFullYear() !== y ||
-    test.getMonth() !== m - 1 ||
-    test.getDate() !== d
-  ){
-    return null;
-  }
-
-  const iso = `${String(y).padStart(4,"0")}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  return { d, m, y, iso };
+  if(test.getFullYear() !== y || test.getMonth() !== m - 1 || test.getDate() !== d) return null;
+  return { d, m, y, iso: `${String(y).padStart(4,"0")}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}` };
 }
-
 function addDateCandidate(list, iso, score){
   const existing = list.find(x => x.iso === iso);
-  if(existing){
-    existing.score = Math.max(existing.score, score);
-    existing.count += 1;
-  } else {
-    list.push({ iso, score, count: 1 });
-  }
+  if(existing){ existing.score = Math.max(existing.score, score); existing.count += 1; }
+  else list.push({ iso, score, count: 1 });
 }
-
 function extractDateCandidatesFromText(rawText){
   const candidates = [];
   if(!rawText) return candidates;
-
-  const text = rawText.replace(/\r/g, "\n");
-  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-
+  const lines = rawText.replace(/\r/g, "\n").split("\n").map(l => l.trim()).filter(Boolean);
   const keywordScore = (line) => {
     const n = normalizeFournisseur(line);
     let score = 1;
@@ -660,160 +372,79 @@ function extractDateCandidatesFromText(rawText){
     if(n.includes("livraison")) score += 3;
     if(n.includes("bl")) score += 2;
     if(n.includes("edition")) score += 1;
-    if(n.includes("émis")) score += 1;
     if(n.includes("emis")) score += 1;
     if(n.includes("facture")) score -= 1;
     return score;
   };
-
   for(const line of lines){
     const score = keywordScore(line);
-
     let match;
     const regexFr = /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/g;
-    while((match = regexFr.exec(line)) !== null){
-      const parsed = parseDateParts(match[1], match[2], match[3]);
-      if(parsed) addDateCandidate(candidates, parsed.iso, score);
-    }
-
+    while((match = regexFr.exec(line)) !== null){ const parsed = parseDateParts(match[1], match[2], match[3]); if(parsed) addDateCandidate(candidates, parsed.iso, score); }
     const regexIso = /\b(20\d{2})[\/\-.](\d{1,2})[\/\-.](\d{1,2})\b/g;
-    while((match = regexIso.exec(line)) !== null){
-      const parsed = parseDateParts(match[3], match[2], match[1]);
-      if(parsed) addDateCandidate(candidates, parsed.iso, score);
-    }
+    while((match = regexIso.exec(line)) !== null){ const parsed = parseDateParts(match[3], match[2], match[1]); if(parsed) addDateCandidate(candidates, parsed.iso, score); }
   }
-
   return candidates;
 }
-
 function chooseBestDetectedDate(allDateCandidates){
   if(!allDateCandidates.length) return "";
-  allDateCandidates.sort((a, b) => {
-    if(b.score !== a.score) return b.score - a.score;
-    if(b.count !== a.count) return b.count - a.count;
-    return b.iso.localeCompare(a.iso);
-  });
+  allDateCandidates.sort((a, b) => b.score !== a.score ? b.score - a.score : (b.count !== a.count ? b.count - a.count : b.iso.localeCompare(a.iso)));
   return allDateCandidates[0].iso;
 }
 
 async function detectDataFromAllPhotos(){
   if(!photos.length || ocrRunning) return;
-
   ocrRunning = true;
-
   try{
     let fournisseurTrouve = "";
     const allBuckets = { net: [], general: [], brut: [] };
     const allDateCandidates = [];
-
     for(let i = 0; i < photos.length; i++){
       const pageNumber = i + 1;
-
-      const result = await Tesseract.recognize(
-        photos[i],
-        "fra",
-        {
-          logger: m => {
-            if(m.status === "recognizing text"){
-              const pct = Math.round((m.progress || 0) * 100);
-              setOcrStatus("Lecture automatique… page " + pageNumber + "/" + photos.length + " - " + pct + "%");
-            }
+      const result = await Tesseract.recognize(photos[i], "fra", {
+        logger: m => {
+          if(m.status === "recognizing text"){
+            const pct = Math.round((m.progress || 0) * 100);
+            setOcrStatus("Lecture automatique… page " + pageNumber + "/" + photos.length + " - " + pct + "%");
           }
         }
-      );
-
+      });
       const text = result?.data?.text || "";
-
-      if(!fournisseurTrouve){
-        const candidateFournisseur = findFournisseurFromText(text);
-        if(candidateFournisseur){
-          fournisseurTrouve = candidateFournisseur;
-        }
-      }
-
+      if(!fournisseurTrouve){ const c = findFournisseurFromText(text); if(c) fournisseurTrouve = c; }
       const pageBuckets = extractTotalHtCandidatesFromText(text);
-      allBuckets.net.push(...pageBuckets.net);
-      allBuckets.general.push(...pageBuckets.general);
-      allBuckets.brut.push(...pageBuckets.brut);
-
-      const pageDates = extractDateCandidatesFromText(text);
-      allDateCandidates.push(...pageDates);
+      allBuckets.net.push(...pageBuckets.net); allBuckets.general.push(...pageBuckets.general); allBuckets.brut.push(...pageBuckets.brut);
+      allDateCandidates.push(...extractDateCandidatesFromText(text));
     }
-
-    if(fournisseurTrouve){
-      document.getElementById("fournisseur").value = fournisseurTrouve;
-      document.getElementById("fournisseurSuggestions").classList.add("hidden");
-      autoFillPrestation();
-    }
-
+    if(fournisseurTrouve){ document.getElementById("fournisseur").value = fournisseurTrouve; document.getElementById("fournisseurSuggestions").classList.add("hidden"); autoFillPrestation(); }
     const bestPrice = chooseBestDetectedPrice(allBuckets);
-    if(Number.isFinite(bestPrice)){
-      document.getElementById("prix").value = formatPriceForInput(bestPrice);
-    }
-
+    if(Number.isFinite(bestPrice)) document.getElementById("prix").value = formatPriceForInput(bestPrice);
     const bestDate = chooseBestDetectedDate(allDateCandidates);
-    if(bestDate){
-      document.getElementById("date").value = bestDate;
-    }
-
-    const fournisseurValue = document.getElementById("fournisseur").value;
-    const prixValue = document.getElementById("prix").value;
-    const dateValue = document.getElementById("date").value;
-
-    if(fournisseurValue || prixValue || dateValue){
-      const parts = [];
-      if(fournisseurValue) parts.push("Fournisseur détecté : " + fournisseurValue);
-      if(dateValue) parts.push("Date détectée : " + dateValue);
-      if(prixValue) parts.push("Prix HT détecté : " + prixValue + " €");
-      setOcrStatus(parts.join(" | "));
-      toast("Données détectées");
-    } else {
-      setOcrStatus("Aucune donnée reconnue automatiquement");
-    }
-  } catch(error){
-    console.error(error);
-    setOcrStatus("Erreur de lecture automatique");
-  } finally {
-    ocrRunning = false;
-  }
+    if(bestDate) document.getElementById("date").value = bestDate;
+    const parts = [];
+    if(document.getElementById("fournisseur").value) parts.push("Fournisseur détecté : " + document.getElementById("fournisseur").value);
+    if(document.getElementById("date").value) parts.push("Date détectée : " + document.getElementById("date").value);
+    if(document.getElementById("prix").value) parts.push("Prix HT détecté : " + document.getElementById("prix").value + " €");
+    if(parts.length){ setOcrStatus(parts.join(" | ")); toast("Données détectées"); }
+    else setOcrStatus("Aucune donnée reconnue automatiquement");
+  } catch(error){ console.error(error); setOcrStatus("Erreur de lecture automatique"); }
+  finally { ocrRunning = false; }
 }
 
 function renderThumbs(){
   thumbRow.innerHTML = "";
-
   photos.forEach((src, i) => {
     const d = document.createElement("div");
     d.className = "thumb";
     d.innerHTML = '<img src="' + src + '"><button class="xbtn">×</button>';
-    d.querySelector(".xbtn").onclick = e => {
-      e.stopPropagation();
-      photos.splice(i, 1);
-      renderThumbs();
-      setOcrStatus("");
-    };
+    d.querySelector(".xbtn").onclick = e => { e.stopPropagation(); photos.splice(i, 1); renderThumbs(); setOcrStatus(""); };
     thumbRow.appendChild(d);
   });
-
-  const gal = document.createElement("div");
-  gal.className = "thumb";
-  gal.innerHTML = "🖼️";
-  gal.onclick = () => gallery.click();
-  thumbRow.appendChild(gal);
-
-  const cam = document.createElement("div");
-  cam.className = "thumb";
-  cam.innerHTML = "📷";
-  cam.onclick = () => camera.click();
-  thumbRow.appendChild(cam);
+  const gal = document.createElement("div"); gal.className = "thumb"; gal.innerHTML = "🖼️"; gal.onclick = () => gallery.click(); thumbRow.appendChild(gal);
+  const cam = document.createElement("div"); cam.className = "thumb"; cam.innerHTML = "📷"; cam.onclick = () => camera.click(); thumbRow.appendChild(cam);
 }
 
 function toData(file){
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
+  return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(file); });
 }
 
 function startCrop(src){
@@ -822,17 +453,23 @@ function startCrop(src){
   cropImage.src = src;
 }
 
-function openCropModal(){
-  cropModal.classList.remove("hidden");
-  resizeCropCanvas();
+function defaultCropPoints(){
   const m = 0.08;
-  cropPoints = [
+  return [
     {x:displayed.x + displayed.w * m,     y:displayed.y + displayed.h * m},
     {x:displayed.x + displayed.w * (1-m), y:displayed.y + displayed.h * m},
     {x:displayed.x + displayed.w * (1-m), y:displayed.y + displayed.h * (1-m)},
     {x:displayed.x + displayed.w * m,     y:displayed.y + displayed.h * (1-m)}
   ];
+}
+
+function openCropModal(){
+  cropModal.classList.remove("hidden");
+  resizeCropCanvas();
+  cropPoints = defaultCropPoints();
   drawCropScene();
+  setScanInfo("Recherche automatique du cadre...");
+  setTimeout(() => autoDetectPageFrame(true), 150);
 }
 
 function closeCropModal(){
@@ -845,21 +482,23 @@ function resizeCropCanvas(){
   const rect = cropWrap.getBoundingClientRect();
   cropCanvas.width = rect.width;
   cropCanvas.height = rect.height;
-
-  const iw = cropImage.width;
-  const ih = cropImage.height;
+  const iw = cropImage.width, ih = cropImage.height;
   const scale = Math.min(rect.width / iw, rect.height / ih);
-  const w = iw * scale;
-  const h = ih * scale;
-  const x = (rect.width - w) / 2;
-  const y = (rect.height - h) / 2;
+  const w = iw * scale, h = ih * scale;
+  const x = (rect.width - w) / 2, y = (rect.height - h) / 2;
   displayed = {x, y, w, h};
 }
 
 function drawCropScene(){
   cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
   cropCtx.drawImage(cropImage, displayed.x, displayed.y, displayed.w, displayed.h);
-
+  cropCtx.fillStyle = "rgba(0,0,0,.35)";
+  cropCtx.beginPath();
+  cropCtx.rect(0,0,cropCanvas.width,cropCanvas.height);
+  cropCtx.moveTo(cropPoints[0].x, cropPoints[0].y);
+  for(let i = 1; i < cropPoints.length; i++) cropCtx.lineTo(cropPoints[i].x, cropPoints[i].y);
+  cropCtx.closePath();
+  cropCtx.fill("evenodd");
   cropCtx.strokeStyle = "#ff3b30";
   cropCtx.lineWidth = 3;
   cropCtx.beginPath();
@@ -867,11 +506,7 @@ function drawCropScene(){
   for(let i = 1; i < cropPoints.length; i++) cropCtx.lineTo(cropPoints[i].x, cropPoints[i].y);
   cropCtx.closePath();
   cropCtx.stroke();
-
-  handles.forEach((h, i) => {
-    h.style.left = cropPoints[i].x + "px";
-    h.style.top = cropPoints[i].y + "px";
-  });
+  handles.forEach((h, i) => { h.style.left = cropPoints[i].x + "px"; h.style.top = cropPoints[i].y + "px"; });
 }
 
 function clampPoint(p){
@@ -879,44 +514,179 @@ function clampPoint(p){
   p.y = Math.max(displayed.y, Math.min(displayed.y + displayed.h, p.y));
 }
 
+function orderPoints(points){
+  const pts = points.map(p => ({x:p.x, y:p.y}));
+  const sum = pts.map(p => p.x + p.y);
+  const diff = pts.map(p => p.x - p.y);
+  return [
+    pts[sum.indexOf(Math.min(...sum))],
+    pts[diff.indexOf(Math.max(...diff))],
+    pts[sum.indexOf(Math.max(...sum))],
+    pts[diff.indexOf(Math.min(...diff))]
+  ];
+}
+
+function autoDetectPageFrame(showMessage){
+  if(!cropImage){ return false; }
+  if(!cvReady || !window.cv){
+    if(showMessage) setScanInfo("OpenCV charge encore. Tu peux placer les points à la main ou réessayer dans 2 secondes.");
+    return false;
+  }
+
+  let src, small, gray, blur, edges, contours, hierarchy;
+  try{
+    const temp = document.createElement("canvas");
+    const maxSide = 1200;
+    const scale = Math.min(1, maxSide / Math.max(cropImage.width, cropImage.height));
+    temp.width = Math.round(cropImage.width * scale);
+    temp.height = Math.round(cropImage.height * scale);
+    temp.getContext("2d").drawImage(cropImage, 0, 0, temp.width, temp.height);
+
+    src = cv.imread(temp);
+    small = new cv.Mat();
+    gray = new cv.Mat();
+    blur = new cv.Mat();
+    edges = new cv.Mat();
+    contours = new cv.MatVector();
+    hierarchy = new cv.Mat();
+
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+    cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0, 0, cv.BORDER_DEFAULT);
+    cv.Canny(blur, edges, 50, 150);
+
+    const kernel = cv.Mat.ones(3,3,cv.CV_8U);
+    cv.dilate(edges, edges, kernel);
+    cv.erode(edges, edges, kernel);
+    kernel.delete();
+
+    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    let best = null;
+    let bestArea = 0;
+    const imageArea = temp.width * temp.height;
+
+    for(let i = 0; i < contours.size(); i++){
+      const cnt = contours.get(i);
+      const peri = cv.arcLength(cnt, true);
+      const approx = new cv.Mat();
+      cv.approxPolyDP(cnt, approx, 0.025 * peri, true);
+      const area = Math.abs(cv.contourArea(approx));
+
+      if(approx.rows === 4 && area > bestArea && area > imageArea * 0.12){
+        const pts = [];
+        for(let j = 0; j < 4; j++){
+          pts.push({x: approx.intPtr(j,0)[0], y: approx.intPtr(j,0)[1]});
+        }
+        best = pts;
+        bestArea = area;
+      }
+      approx.delete(); cnt.delete();
+    }
+
+    if(!best){
+      if(showMessage) setScanInfo("Cadre non détecté automatiquement. Place les 4 points à la main.");
+      return false;
+    }
+
+    const ordered = orderPoints(best).map(p => ({
+      x: displayed.x + (p.x / temp.width) * displayed.w,
+      y: displayed.y + (p.y / temp.height) * displayed.h
+    }));
+
+    cropPoints = ordered;
+    cropPoints.forEach(clampPoint);
+    drawCropScene();
+    if(showMessage) setScanInfo("Cadre détecté automatiquement. Ajuste les coins si besoin, puis valide.");
+    return true;
+  } catch(error){
+    console.error(error);
+    if(showMessage) setScanInfo("Erreur de détection. Place les 4 points à la main.");
+    return false;
+  } finally {
+    [src, small, gray, blur, edges, hierarchy].forEach(m => { if(m) m.delete(); });
+    if(contours) contours.delete();
+  }
+}
+
+function getImageCoordinatesFromCropPoints(){
+  return orderPoints(cropPoints).map(p => ({
+    x: (p.x - displayed.x) * (cropImage.width / displayed.w),
+    y: (p.y - displayed.y) * (cropImage.height / displayed.h)
+  }));
+}
+
+function distance(p1, p2){ return Math.hypot(p1.x - p2.x, p1.y - p2.y); }
+
+function perspectiveCropWithOpenCV(){
+  if(!cvReady || !window.cv) return null;
+  let src, dst, srcTri, dstTri;
+  try{
+    const points = getImageCoordinatesFromCropPoints();
+    const tl = points[0], tr = points[1], br = points[2], bl = points[3];
+    const width = Math.max(distance(br, bl), distance(tr, tl));
+    const height = Math.max(distance(tr, br), distance(tl, bl));
+    if(width < 20 || height < 20) return null;
+
+    const temp = document.createElement("canvas");
+    temp.width = cropImage.width;
+    temp.height = cropImage.height;
+    temp.getContext("2d").drawImage(cropImage, 0, 0);
+
+    src = cv.imread(temp);
+    dst = new cv.Mat();
+    srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [tl.x,tl.y, tr.x,tr.y, br.x,br.y, bl.x,bl.y]);
+    dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0,0, width,0, width,height, 0,height]);
+    const M = cv.getPerspectiveTransform(srcTri, dstTri);
+    const dsize = new cv.Size(Math.round(width), Math.round(height));
+    cv.warpPerspective(src, dst, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
+    M.delete();
+
+    const out = document.createElement("canvas");
+    out.width = Math.round(width);
+    out.height = Math.round(height);
+    cv.imshow(out, dst);
+    return out.toDataURL("image/jpeg", 0.92);
+  } catch(error){
+    console.error(error);
+    return null;
+  } finally {
+    [src, dst, srcTri, dstTri].forEach(m => { if(m) m.delete(); });
+  }
+}
+
+function fallbackRectangleCrop(){
+  const minX = Math.min(...cropPoints.map(p => p.x));
+  const maxX = Math.max(...cropPoints.map(p => p.x));
+  const minY = Math.min(...cropPoints.map(p => p.y));
+  const maxY = Math.max(...cropPoints.map(p => p.y));
+  const sx = (minX - displayed.x) * (cropImage.width / displayed.w);
+  const sy = (minY - displayed.y) * (cropImage.height / displayed.h);
+  const sw = (maxX - minX) * (cropImage.width / displayed.w);
+  const sh = (maxY - minY) * (cropImage.height / displayed.h);
+  if(sw <= 1 || sh <= 1) return null;
+  const temp = document.createElement("canvas");
+  temp.width = Math.max(1, Math.round(sw));
+  temp.height = Math.max(1, Math.round(sh));
+  temp.getContext("2d").drawImage(cropImage, sx, sy, sw, sh, 0, 0, temp.width, temp.height);
+  return temp.toDataURL("image/jpeg", 0.92);
+}
+
 async function generatePdf(){
   try{
-    if(!numero){
-      alert("Générez le numéro d'abord");
-      return;
-    }
-
-    if(!photos.length){
-      alert("Ajoutez au moins une photo du BL");
-      return;
-    }
-
+    if(!numero){ alert("Générez le numéro d'abord"); return; }
+    if(!photos.length){ alert("Ajoutez au moins une photo du BL"); return; }
     const fournisseurValue = document.getElementById("fournisseur").value || "Sans-fournisseur";
     const safeFournisseur = fournisseurValue.trim().replace(/[<>:"/\\|?*\s]+/g, "-") || "Sans-fournisseur";
     const prixValue = document.getElementById("prix").value;
     const prestationValue = document.getElementById("prestation").value || "—";
-
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
-    const pageW = 210;
-    const pageH = 297;
+    const pageW = 210, pageH = 297;
 
-    pdf.setFillColor(26,58,42);
-    pdf.rect(0,0,pageW,28,"F");
-
-    pdf.setTextColor(245,166,35);
-    pdf.setFontSize(16);
-    pdf.setFont("helvetica","bold");
-    pdf.text("GCF – Génie Civil Frontonnais",14,12);
-
-    pdf.setTextColor(255,255,255);
-    pdf.setFontSize(10);
-    pdf.setFont("helvetica","normal");
-    pdf.text("Bon de livraison N° " + numero, 14, 22);
-
-    pdf.setDrawColor(200,64,10);
-    pdf.setLineWidth(0.8);
-    pdf.line(14,32,196,32);
+    pdf.setFillColor(26,58,42); pdf.rect(0,0,pageW,28,"F");
+    pdf.setTextColor(245,166,35); pdf.setFontSize(16); pdf.setFont("helvetica","bold"); pdf.text("GCF – Génie Civil Frontonnais",14,12);
+    pdf.setTextColor(255,255,255); pdf.setFontSize(10); pdf.setFont("helvetica","normal"); pdf.text("Bon de livraison N° " + numero, 14, 22);
+    pdf.setDrawColor(200,64,10); pdf.setLineWidth(0.8); pdf.line(14,32,196,32);
 
     const rows = [
       ["Date", document.getElementById("date").value || "—"],
@@ -927,78 +697,38 @@ async function generatePdf(){
       ["Prestation", prestationValue],
       ["Fournitures", document.getElementById("detail").value || "—"]
     ];
-
     let y = 42;
     rows.forEach(([label, value]) => {
-      pdf.setFont("helvetica","bold");
-      pdf.setFontSize(9);
-      pdf.setTextColor(120,113,108);
-      pdf.text(label, 14, y);
-
-      pdf.setFont("helvetica","normal");
-      pdf.setTextColor(28,25,23);
-      const lines = pdf.splitTextToSize(String(value), 130);
-      pdf.text(lines, 65, y);
-
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(9); pdf.setTextColor(120,113,108); pdf.text(label, 14, y);
+      pdf.setFont("helvetica","normal"); pdf.setTextColor(28,25,23); const lines = pdf.splitTextToSize(String(value), 130); pdf.text(lines, 65, y);
       y += lines.length > 1 ? (lines.length * 5.5 + 2) : 8;
     });
 
     for(let i = 0; i < photos.length; i++) {
       pdf.addPage();
-
-      const img = new Image();
-      img.src = photos[i];
-
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-      });
-
-      const maxW = 190;
-      const maxH = 277;
+      const img = new Image(); img.src = photos[i];
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+      const maxW = 190, maxH = 277;
       const ratio = Math.min(maxW / img.width, maxH / img.height);
-      const w = img.width * ratio;
-      const h = img.height * ratio;
-      const x = (pageW - w) / 2;
-      const yImg = (pageH - h) / 2;
-
+      const w = img.width * ratio, h = img.height * ratio;
+      const x = (pageW - w) / 2, yImg = (pageH - h) / 2;
       pdf.addImage(photos[i], "JPEG", x, yImg, w, h);
     }
-
     const fileName = numero + "-" + safeFournisseur + ".pdf";
     pdf.save(fileName);
     lastPdf = fileName;
-
     toast("PDF généré !");
-  } catch(error) {
-    console.error(error);
-    alert("Erreur lors de la génération du PDF");
-  }
+  } catch(error) { console.error(error); alert("Erreur lors de la génération du PDF"); }
 }
 
 document.getElementById("btnGen").onclick = () => setNumero(genNum());
 document.getElementById("btnRegen").onclick = () => setNumero(genNum());
 
-gallery.onchange = async e => {
-  const f = e.target.files[0];
-  if(!f) return;
-  startCrop(await toData(f));
-  e.target.value = "";
-};
-
-camera.onchange = async e => {
-  const f = e.target.files[0];
-  if(!f) return;
-  startCrop(await toData(f));
-  e.target.value = "";
-};
+gallery.onchange = async e => { const f = e.target.files[0]; if(!f) return; startCrop(await toData(f)); e.target.value = ""; };
+camera.onchange = async e => { const f = e.target.files[0]; if(!f) return; startCrop(await toData(f)); e.target.value = ""; };
 
 handles.forEach((h, i) => {
-  h.addEventListener("pointerdown", e => {
-    e.preventDefault();
-    activeHandle = i;
-    h.setPointerCapture(e.pointerId);
-  });
+  h.addEventListener("pointerdown", e => { e.preventDefault(); activeHandle = i; h.setPointerCapture(e.pointerId); });
 });
 
 cropWrap.addEventListener("pointermove", e => {
@@ -1014,71 +744,39 @@ window.addEventListener("pointerup", () => activeHandle = -1);
 
 window.addEventListener("resize", () => {
   if(cropImage && !cropModal.classList.contains("hidden")) {
+    const old = cropPoints.map(p => ({
+      rx: (p.x - displayed.x) / displayed.w,
+      ry: (p.y - displayed.y) / displayed.h
+    }));
     resizeCropCanvas();
+    cropPoints = old.map(p => ({x: displayed.x + p.rx * displayed.w, y: displayed.y + p.ry * displayed.h}));
     drawCropScene();
   }
 });
 
 document.getElementById("btnCancelCrop").onclick = closeCropModal;
+document.getElementById("btnAutoDetect").onclick = () => autoDetectPageFrame(true);
 
 document.getElementById("btnValidateCrop").onclick = () => {
-  if(!cropImage){
-    toast("Aucune image");
-    return;
-  }
-
-  const minX = Math.min(...cropPoints.map(p => p.x));
-  const maxX = Math.max(...cropPoints.map(p => p.x));
-  const minY = Math.min(...cropPoints.map(p => p.y));
-  const maxY = Math.max(...cropPoints.map(p => p.y));
-
-  const sx = (minX - displayed.x) * (cropImage.width / displayed.w);
-  const sy = (minY - displayed.y) * (cropImage.height / displayed.h);
-  const sw = (maxX - minX) * (cropImage.width / displayed.w);
-  const sh = (maxY - minY) * (cropImage.height / displayed.h);
-
-  if(sw <= 1 || sh <= 1){
-    toast("Recadrage invalide");
-    return;
-  }
-
-  const temp = document.createElement("canvas");
-  temp.width = Math.max(1, Math.round(sw));
-  temp.height = Math.max(1, Math.round(sh));
-  temp.getContext("2d").drawImage(cropImage, sx, sy, sw, sh, 0, 0, temp.width, temp.height);
-
-  photos.push(temp.toDataURL("image/jpeg", 0.92));
+  if(!cropImage){ toast("Aucune image"); return; }
+  let scan = perspectiveCropWithOpenCV();
+  if(!scan) scan = fallbackRectangleCrop();
+  if(!scan){ toast("Recadrage invalide"); return; }
+  photos.push(scan);
   renderThumbs();
   closeCropModal();
-  toast("Photo validée");
-
-  setTimeout(() => {
-    detectDataFromAllPhotos();
-  }, 150);
+  toast("Scan validé");
+  setTimeout(() => detectDataFromAllPhotos(), 150);
 };
 
 const fournisseurInput = document.getElementById("fournisseur");
-
-fournisseurInput.addEventListener("input", () => {
-  renderFournisseurSuggestions();
-  autoFillPrestation();
-});
-
-fournisseurInput.addEventListener("focus", () => {
-  renderFournisseurSuggestions();
-});
-
-fournisseurInput.addEventListener("blur", () => {
-  autoFillPrestation();
-  hideFournisseurSuggestions();
-});
-
+fournisseurInput.addEventListener("input", () => { renderFournisseurSuggestions(); autoFillPrestation(); });
+fournisseurInput.addEventListener("focus", () => renderFournisseurSuggestions());
+fournisseurInput.addEventListener("blur", () => { autoFillPrestation(); hideFournisseurSuggestions(); });
 fournisseurInput.addEventListener("change", autoFillPrestation);
 
 document.addEventListener("click", e => {
-  if (!e.target.closest("#fournisseur") && !e.target.closest("#fournisseurSuggestions")) {
-    document.getElementById("fournisseurSuggestions").classList.add("hidden");
-  }
+  if (!e.target.closest("#fournisseur") && !e.target.closest("#fournisseurSuggestions")) document.getElementById("fournisseurSuggestions").classList.add("hidden");
 });
 
 document.getElementById("btnPdf").onclick = generatePdf;
@@ -1086,10 +784,7 @@ document.getElementById("btnPdf").onclick = generatePdf;
 function openMailTo(email){
   const affaire = document.getElementById("affaire").value || "";
   const subject = encodeURIComponent((affaire || "Affaire") + " – Enregistrement BL");
-  const body = encodeURIComponent(
-    "Ci-joint le BL " + (numero || "") +
-    "\nFichier PDF : " + (lastPdf || "non généré")
-  );
+  const body = encodeURIComponent("Ci-joint le BL " + (numero || "") + "\nFichier PDF : " + (lastPdf || "non généré"));
   window.location = "mailto:" + email + "?subject=" + subject + "&body=" + body;
 }
 
@@ -1098,12 +793,7 @@ document.getElementById("btnMailMorgan").onclick = () => openMailTo("morgan.lana
 
 document.getElementById("btnReset").onclick = () => {
   if(!confirm("Réinitialiser le bon ?")) return;
-
-  numero = null;
-  photos = [];
-  lastPdf = "";
-  ocrRunning = false;
-
+  numero = null; photos = []; lastPdf = ""; ocrRunning = false;
   document.getElementById("startCard").classList.remove("hidden");
   document.getElementById("numeroCard").classList.add("hidden");
   document.getElementById("date").value = today();
@@ -1115,7 +805,6 @@ document.getElementById("btnReset").onclick = () => {
   document.getElementById("detail").value = "";
   document.getElementById("fournisseurSuggestions").classList.add("hidden");
   setOcrStatus("");
-
   renderThumbs();
   toast("Bon réinitialisé");
 };
