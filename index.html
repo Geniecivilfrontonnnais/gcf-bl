@@ -850,10 +850,22 @@ async function generatePdfBlOnly(){
       pdf.addImage(photos[i], "JPEG", x, yImg, w, h, undefined, "FAST");
     }
 
-    const d = new Date();
     const pad = v => String(v).padStart(2, "0");
-    const stamp = d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()) + "-BL";
-    const fileName = stamp + ".pdf";
+const detectedDate = document.getElementById("date").value;
+let stamp;
+if(detectedDate){
+  stamp = detectedDate;
+} else {
+  const d = new Date();
+  stamp = d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate());
+}
+let fournisseurPart = (document.getElementById("fournisseur").value || "").trim();
+if(!fournisseurPart){
+  const saisie = prompt("Nom du fournisseur pour le fichier PDF :");
+  fournisseurPart = (saisie || "").trim();
+}
+const safeFournisseur = fournisseurPart.replace(/[<>:"/\\|?*\s]+/g, "-") || "BL";
+const fileName = stamp + "-" + safeFournisseur + ".pdf";
     pdf.save(fileName);
     lastPdf = fileName;
     toast("PDF BL généré sans page de garde !");
