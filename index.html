@@ -322,19 +322,24 @@ function extractTotalHtCandidatesFromText(rawText){
   if(!rawText) return buckets;
   const text = rawText.replace(/\r/g, "\n").replace(/[ \t]+/g, " ");
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-  for(const line of lines){
-    const nline = normalizeFournisseur(line);
-    if(!(nline.includes("total") && nline.includes("ht"))) continue;
-    if(nline.includes("ttc")) continue;
-    const matches = line.match(/\d[\d\s.,]*\d|\d/g);
+  for(let li = 0; li < lines.length; li++){
+  const line = lines[li];
+  const nline = normalizeFournisseur(line);
+  if(!(nline.includes("total") && nline.includes("ht"))) continue;
+  if(nline.includes("ttc")) continue;
+  const isNet = nline.includes("net"), isBrut = nline.includes("brut");
+  const candidates = [line];
+  if(li + 1 < lines.length) candidates.push(lines[li + 1]);
+  for(const candidate of candidates){
+    const matches = candidate.match(/\d[\d\s.,]*\d|\d/g);
     if(!matches) continue;
-    const isNet = nline.includes("net"), isBrut = nline.includes("brut");
     for(const m of matches){
       if(isNet) pushPriceCandidate(buckets.net, m);
       else if(isBrut) pushPriceCandidate(buckets.brut, m);
       else pushPriceCandidate(buckets.general, m);
     }
   }
+}
   const patterns = [
     { type: "net", regex: /total\s*ht\s*net[^0-9]{0,25}([0-9][0-9\s.,]*)/gi },
     { type: "net", regex: /ht\s*total\s*net[^0-9]{0,25}([0-9][0-9\s.,]*)/gi },
