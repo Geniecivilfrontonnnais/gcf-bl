@@ -328,16 +328,27 @@ function extractTotalHtCandidatesFromText(rawText){
   if(!(nline.includes("total") && nline.includes("ht"))) continue;
   if(nline.includes("ttc")) continue;
   const isNet = nline.includes("net"), isBrut = nline.includes("brut");
-  const candidates = [line];
-  if(li + 1 < lines.length) candidates.push(lines[li + 1]);
-  for(const candidate of candidates){
-    const matches = candidate.match(/\d[\d\s.,]*\d|\d/g);
-    if(!matches) continue;
-    for(const m of matches){
-      if(isNet) pushPriceCandidate(buckets.net, m);
-      else if(isBrut) pushPriceCandidate(buckets.brut, m);
-      else pushPriceCandidate(buckets.general, m);
-    }
+  // APRÈS
+// cherche sur la ligne courante
+const matchesCurrent = line.match(/\d[\d\s.,]*\d|\d/g);
+if(matchesCurrent){
+  for(const m of matchesCurrent){
+    if(isNet) pushPriceCandidate(buckets.net, m);
+    else if(isBrut) pushPriceCandidate(buckets.brut, m);
+    else pushPriceCandidate(buckets.general, m);
+  }
+}
+// si pas de nombre sur la ligne courante, cherche sur la ligne suivante
+// mais uniquement un nombre suivi de € ou en toute fin de ligne
+if(!matchesCurrent && li + 1 < lines.length){
+  const nextLine = lines[li + 1];
+  const mEuro = nextLine.match(/(\d[\d\s.,]*\d|\d)\s*€/);
+  const mEnd = nextLine.match(/(\d[\d\s.,]*\d)\s*$/);
+  const m = mEuro ? mEuro[1] : (mEnd ? mEnd[1] : null);
+  if(m){
+    if(isNet) pushPriceCandidate(buckets.net, m);
+    else if(isBrut) pushPriceCandidate(buckets.brut, m);
+    else pushPriceCandidate(buckets.general, m);
   }
 }
   const patterns = [
