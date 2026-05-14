@@ -330,7 +330,7 @@ function extractTotalHtCandidatesFromText(rawText){
   const isNet = nline.includes("net"), isBrut = nline.includes("brut");
   // APRÈS
 // cherche sur la ligne courante
-const matchesCurrent = line.match(/\d[\d\s.,]*\d|\d/g);
+const matchesCurrent = line.match(/\d[\d.,]*\d|\d/g);
 if(matchesCurrent){
   for(const m of matchesCurrent){
     if(isNet) pushPriceCandidate(buckets.net, m);
@@ -342,8 +342,8 @@ if(matchesCurrent){
 // mais uniquement un nombre suivi de € ou en toute fin de ligne
 if(!matchesCurrent && li + 1 < lines.length){
   const nextLine = lines[li + 1];
-  const mEuro = nextLine.match(/(\d[\d\s.,]*\d|\d)\s*€/);
-  const mEnd = nextLine.match(/(\d[\d\s.,]*\d)\s*$/);
+const mEuro = nextLine.match(/(\d[\d.,]*\d|\d)\s*€/);
+const mEnd = nextLine.match(/(\d[\d.,]*\d)\s*$/);
   const m = mEuro ? mEuro[1] : (mEnd ? mEnd[1] : null);
   if(m){
     if(isNet) pushPriceCandidate(buckets.net, m);
